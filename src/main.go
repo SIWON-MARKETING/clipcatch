@@ -430,7 +430,7 @@ func approvedVideoPath(u *url.URL, host string) bool {
         digits := regexp.MustCompile("^[0-9]+$")
         return u.Scheme == "https" && u.Port() == "" &&
             u.EscapedPath() == "/main/player.do" &&
-            digits.MatchString(q.Get("mc")) && digits.MatchString(q.Get("ct1")) &&
+            regexp.MustCompile("^[A-Za-z0-9]{1,12}$").MatchString(q.Get("mc")) && digits.MatchString(q.Get("ct1")) &&
             digits.MatchString(q.Get("ct2")) &&
             regexp.MustCompile("^[A-Za-z0-9]{1,12}$").MatchString(q.Get("ct3"))
     default:
@@ -892,6 +892,12 @@ func (a *App) runDownload(id string) {
 			// Generic 403/JSON failures are not evidence that the user must log in.
 			j.AuthRequired = needsAuth(msg) || initialExplicitLogin
 			j.ErrorCode, j.ErrorTitle, j.ErrorAdvice = classifyDownloadError(msg, j.Host)
+			if strings.HasPrefix(msg, "CLIPCATCH-SITE-RESOLVE:") {
+				j.ErrorCode = "CC-316"
+				j.ErrorTitle = "사이트에서 영상 재생 주소를 가져오지 못했어"
+				j.ErrorAdvice = "공개 영상인지 확인해 줘. 영상 엔진 업데이트가 아니라 해당 사이트의 재생 정보 조회 오류야."
+				j.AuthRequired = false
+			}
 			if msg == "CC-313-REDDIT-FALLBACK-SILENT" {
 				j.ErrorCode = "CC-313"
 				j.ErrorTitle = "저장된 레딧 영상에 소리가 없어"
@@ -959,6 +965,15 @@ func (a *App) runDownloadAttemptNetwork(id string, j *Job, impersonate, forceIPv
 	ctx := a.jobContext(id)
 	if err := ctx.Err(); err != nil {
 		return err, "다운로드가 취소되었어."
+	}
+	if isSpecialVideoPage(j.URL) {
+		var cleanup func()
+		var resolveErr error
+		args, cleanup, resolveErr = a.siteVideoDownloadArgs(ctx, j, args)
+		if resolveErr != nil {
+			return resolveErr, "CLIPCATCH-SITE-RESOLVE:" + resolveErr.Error()
+		}
+		defer cleanup()
 	}
 	cmd := hiddenCommandContext(ctx, a.ytDlp, args...)
 	cmd.Stdin = nil
