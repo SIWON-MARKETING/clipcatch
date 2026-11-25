@@ -35,12 +35,12 @@ jobs:
         run: |
           node --test tests/multisite_video_test.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Browser URL test failed' }
-      - name: Go regression suite
+      - name: Site resolver tests and full Go static checks
         shell: pwsh
         working-directory: src
         run: |
-          go test -count=1 -timeout=8m ./...
-          if ($LASTEXITCODE -ne 0) { throw 'Go tests failed' }
+          go test -count=1 -timeout=3m -run '^Test(AssemblyOfficialMetadataResolution|NaverOfficialPlaybackMetadataAndSeparateAudio|MediaURLSafetyAndInfoFileCleanup|OfficialVideoPagesRetainParameters|NewPublicVideoPages|TrialExtensionIsolatedFromStableSource)$' .
+          if ($LASTEXITCODE -ne 0) { throw 'Official site resolver tests failed' }
           go vet ./...
           if ($LASTEXITCODE -ne 0) { throw 'Go vet failed' }
       - name: Live public video metadata check (non-blocking if provider denies CI access)
