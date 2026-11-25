@@ -78,3 +78,23 @@ func TestOfficialVideoPagesRetainParameters(t *testing.T){
         if parsed.Query().Get(key)!=val {t.Fatalf("%s lost",key)}
     }
 }
+
+
+func TestAssemblyUsesFFmpegForHLSOnly(t *testing.T) {
+    urls := []struct{ raw string; want bool }{
+        {"https://w3.assembly.go.kr/main/player.do?menu=10&mc=10&ct1=22&ct2=439&ct3=11&wv=1", true},
+        {"https://w3.assembly.go.kr/not-a-player", false},
+        {"https://m.naver.com/shorts/?mediaId=3C8DF44C96A26217490A1AB575D276BEF723", false},
+        {"https://www.youtube.com/watch?v=12345678901", false},
+    }
+    for _,testcase:=range urls {
+        flags:=specialSiteDownloadFlags(testcase.raw)
+        if (len(flags)>0)!=testcase.want {t.Fatalf("unexpected site FFmpeg flags for %s: %v",testcase.raw,flags)}
+        if testcase.want {
+            got:=strings.Join(flags," ")
+            if !strings.Contains(got,"m3u8:ffmpeg")||!strings.Contains(got,"--remux-video mp4") {
+                t.Fatalf("Assembly FFmpeg selection wrong: %v",flags)
+            }
+        }
+    }
+}
