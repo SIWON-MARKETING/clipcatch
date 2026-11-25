@@ -1,0 +1,65 @@
+name: ClipCatch Assembly HLS sample verification
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/assembly-hls-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sample:
+    if: github.head_ref == 'test/multisite-2.0.1-test3'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install yt-dlp for 8-second HLS format check
+        run: python -m pip install yt-dlp
+      - name: Resolve and save safe metadata, not video
+        env:
+          PYTHONUTF8: '1'
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,time,urllib.parse,urllib.request,pathlib
+          page='https://w3.assembly.go.kr/main/player.do?menu=10&mc=10&ct1=22&ct2=439&ct3=11&wv=1'
+          root='https://w3.assembly.go.kr/main/service/movie.do'
+          p=urllib.parse.urlparse(page);q={k:urllib.parse.parse_qs(p.query)[k][0] for k in ['mc','ct1','ct2','ct3','wv']}
+          def fetch(cmd,extra):
+              opts=dict(q,cmd=cmd,vv=str(int(time.time())),**extra)
+              req=urllib.request.Request(root+'?'+urllib.parse.urlencode(opts),headers={'User-Agent':'Mozilla/5.0','Referer':page})
+              with urllib.request.urlopen(req,timeout=20) as r:return json.load(r)
+          l=fetch('movieInfo',{})
+          movies=l.get('movieList') or []
+          assert movies, 'no public Assembly recordings'
+          recording=movies[0]
+          detail=fetch('fileInfo',{'no':str(recording['no']),'xreferer':''})
+          urls=detail.get('filePath') or {}
+          hls=urls.get('720p') or urls.get('480p') or urls.get('240p')
+          assert hls,'no HLS stream'
+          if hls.startswith('//'):hls='https:'+hls
+          parsed=urllib.parse.urlparse(hls)
+          assert parsed.scheme=='https' and parsed.hostname=='m.webcast.go.kr' and parsed.path.startswith('/vod/') and parsed.path.endswith('.m3u8')
+          media={'id':'assembly-sample-675887','title':'Assembly public 8s sample','webpage_url':page,'ext':'mp4','_type':'video','extractor':'ClipCatchSite','extractor_key':'ClipCatchSite','formats':[{'format_id':'hls','url':hls,'ext':'mp4','protocol':'m3u8_native','vcodec':'avc1','acodec':'mp4a.40.2','http_headers':{'Referer':page,'User-Agent':'Mozilla/5.0'}}],'http_headers':{'Referer':page,'User-Agent':'Mozilla/5.0'}}
+          pathlib.Path('probe-info.json').write_text(json.dumps(media),encoding='utf-8')
+          print('Assembly metadata: HLS source resolved, public cdn', parsed.hostname, 'title?',bool(l.get('confTitle')))
+          PY
+      - name: Download only first 8 seconds via exact ClipCatch yt-dlp info format
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p sample
+          python -m yt_dlp --ignore-config --no-playlist --newline --progress --concurrent-fragments 2 --merge-output-format mp4/mkv -f 'bv*+ba/b' -P sample -o '%(title).120B [%(id)s].%(ext)s' --download-sections '*00:00:00-00:00:08' --load-info-json probe-info.json 2>&1 | tail -n 45
+          echo 'SAMPLE FILES:'
+          ls -lh sample
+          f="$(find sample -maxdepth 1 -type f | head -n 1)"
+          test -n "$f"
+          echo 'FFPROBE video/audio result:'
+          ffprobe -v error -protocol_whitelist file,pipe -show_entries 'stream=index,codec_type,codec_name,width,height:format=format_name,duration' -of json "$f"
+          echo '8s sample decoded by ffprobe successfully'
