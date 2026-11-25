@@ -11,7 +11,10 @@ jobs:
   inspect-public-pages:
     if: github.head_ref == 'test/multisite-2.0.1-test3'
     runs-on: windows-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
+    env:
+      PYTHONIOENCODING: utf-8
+      PYTHONUTF8: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -19,68 +22,62 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Read public page structure; no cookies; no video/media downloads
+      - name: Read public Assembly and Naver HTML and public JS only; no media downloads or cookies
         shell: pwsh
         run: |
           @'
           from html.parser import HTMLParser
-          from urllib.parse import urlparse, urljoin, urlunparse
+          from urllib.parse import urlparse, urljoin
           from urllib.request import Request, urlopen
-          from urllib.error import HTTPError, URLError
-          import re
-          PAGES = [
-            ("assembly-user", "https://w3.assembly.go.kr/main/player.do?menu=10&mc=10&ct1=22&ct2=439&ct3=11&wv=1"),
-            ("assembly-old", "https://w3.assembly.go.kr/main/player.do?menu=30&mc=345&ct1=22&ct2=439&ct3=V2&wv=1"),
-            ("naver-clip-home", "https://clip.naver.com/contents"),
-            ("naver-shorts-home", "https://m.naver.com/shorts/"),
-            ("naver-tv-public", "https://tv.naver.com/v/19961840"),
+          from pathlib import Path
+          import os, re
+          root=Path('site-snapshots');root.mkdir(exist_ok=True)
+          PAGES=[
+             ('assembly', 'https://w3.assembly.go.kr/main/player.do?menu=10&mc=10&ct1=22&ct2=439&ct3=11&wv=1'),
+             ('naver-clip', 'https://clip.naver.com/contents'),
+             ('naver-shorts', 'https://m.naver.com/shorts/'),
           ]
-          def safe_link(s):
-            try:
-              p=urlparse(s)
-              return p.scheme+"://"+p.netloc+p.path
-            except Exception:
-              return "[unparseable]"
+          def get(url, limit=1200000):
+             request=Request(url,headers={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/129.0 Safari/537.36','Accept-Language':'ko-KR,ko;q=0.9','Accept':'text/html,application/xhtml+xml,*/*'})
+             with urlopen(request,timeout=12) as response:
+                 return response.status,response.url,response.read(limit+1)[:limit]
           class Parser(HTMLParser):
-            def __init__(self):
-              super().__init__();self.tags=[];self.scripts=[]
-            def handle_starttag(self, tag, attrs):
-              a=dict(attrs); u=a.get("src") or a.get("content") or a.get("href") or ""
-              if tag in ("script","video","source","iframe","meta") and u:
-                self.tags.append((tag,safe_link(u)))
-                if tag=="script" and a.get("src"):self.scripts.append(a["src"])
-          def get(u,timeout=12):
-            q=Request(u,headers={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/129.0 Safari/537.36","Accept-Language":"ko-KR,ko;q=0.9","Accept":"text/html,application/xhtml+xml"})
-            with urlopen(q,timeout=timeout) as r:
-              typ=r.headers.get("content-type","")
-              return r.status, safe_link(r.url), typ, r.read(650000)
+             def __init__(self):super().__init__();self.scripts=[]
+             def handle_starttag(self,tag,attrs):
+                 if tag=='script':
+                     src=dict(attrs).get('src')
+                     if src:self.scripts.append(src)
           for name,url in PAGES:
-            print("\nPAGE",name,safe_link(url))
-            try:
-              status,final,typ,raw=get(url)
-              print("HTTP",status,"final",final,"type",typ,"bytes",len(raw))
-              html=raw.decode("utf-8","replace")
-              p=Parser();p.feed(html)
-              print("RESOURCE TAGS",p.tags[:28])
-              print("SCRIPT COUNT",len(p.scripts))
-              print("MARKERS",{x:len(re.findall(x,html,re.I)) for x in [r"m3u8",r"\.mp4",r"\.mpd",r"video",r"iframe",r"player",r"vod",r"videoId",r"inKey",r"__NEXT_DATA__",r"clipId"]})
-              for keyword in [r'm3u8',r'\.mp4',r'vod',r'playerUrl',r'videoId',r'inKey',r'iframe',r'video',r'<source']:
-                m=re.search(keyword,html,re.I)
-                if m:
-                  snip=html[max(0,m.start()-130):m.end()+220]
-                  snip=re.sub(r"https?://[^\s\"'<>]+",lambda m:safe_link(m.group(0)),snip)
-                  snip=re.sub(r"[A-Za-z0-9_=/-]{80,}","[long-token-redacted]",snip)
-                  print("HINT",keyword,repr(snip[:350]))
-              if name.startswith("assembly"):
-                for js in p.scripts[-12:]:
-                  full=urljoin(url,js)
-                  try:
-                    ss,ff,tt,bb=get(full,timeout=8)
-                    if "javascript" not in tt and ".js" not in ff:continue
-                    body=bb.decode("utf-8","replace")
-                    print("JS",safe_link(full),"bytes",len(bb),"markers",{x:body.lower().count(x.lower()) for x in ['m3u8','.mp4','vod','player','videoUrl','stream']})
-                  except Exception as e:
-                    print("JS ERROR",safe_link(full),type(e).__name__)
-            except Exception as e:
-              print("ERROR",type(e).__name__,str(e)[:180])
+             try:
+                 code,final,body=get(url)
+                 (root/(name+'.html')).write_bytes(body)
+                 parser=Parser();parser.feed(body.decode('utf-8','replace'))
+                 print('PAGE',name,'HTTP',code,'bytes',len(body),'scripts',len(parser.scripts))
+                 for j,src in enumerate(parser.scripts):
+                     full=urljoin(final,src)
+                     host=urlparse(full).hostname
+                     if host not in ('w3.assembly.go.kr','static-clipcreators.pstatic.net'):continue
+                     if name=='naver-clip':
+                         # Clip home uses Next.js chunks; load the page-specific
+                         # chunks and a few core bundles with a strict 8 MB cap.
+                         if not any(x in full for x in ('/app/','main-app','webpack','_next/static/chunks/')):continue
+                         if j>39:continue
+                     if name=='assembly' and not any(x in full for x in ('openos','common.js','ready.js','sub.js')):continue
+                     try:
+                         status,target,js=get(full,limit=650000)
+                         if status==200:
+                             (root/(name+'-script-'+str(j)+'.js')).write_bytes(js)
+                             print('JS',name,j,len(js),urlparse(full).path[-130:])
+                     except Exception as exc:
+                         print('JS ERROR',name,j,type(exc).__name__)
+             except Exception as exc:
+                 print('PAGE ERROR',name,type(exc).__name__,str(exc)[:160])
           '@ | python -
+      - name: Upload read-only page snapshots for internal inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClipCatch-site-snapshots
+          path: site-snapshots/
+          retention-days: 1
+          if-no-files-found: warn
