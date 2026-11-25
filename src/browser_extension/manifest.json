@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "ClipCatch Browser",
+  "name": "ClipCatch Browser TEST2",
   "version": "1.9.6",
-  "description": "ClipCatch companion for selecting public videos and downloading them as original files or Premiere-compatible MP4.",
+  "description": "ClipCatch isolated TEST2 helper for authorized public video pages.",
   "minimum_chrome_version": "120",
   "permissions": [
     "activeTab",
@@ -29,5 +29,5 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'"
   },
-  "version_name": "1.9.6"
+  "version_name": "2.0.1-test.3"
 }
