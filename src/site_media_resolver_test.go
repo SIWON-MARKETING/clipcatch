@@ -80,20 +80,20 @@ func TestOfficialVideoPagesRetainParameters(t *testing.T){
 }
 
 
-func TestAssemblyUsesFFmpegForHLSOnly(t *testing.T) {
-    urls := []struct{ raw string; want bool }{
-        {"https://w3.assembly.go.kr/main/player.do?menu=10&mc=10&ct1=22&ct2=439&ct3=11&wv=1", true},
-        {"https://w3.assembly.go.kr/not-a-player", false},
-        {"https://m.naver.com/shorts/?mediaId=3C8DF44C96A26217490A1AB575D276BEF723", false},
-        {"https://www.youtube.com/watch?v=12345678901", false},
+func TestHLSUsesFFmpegWhileDirectMP4AndDASHKeepExistingDownloader(t *testing.T) {
+    cases := []struct{ format siteVideoFormat; want bool }{
+        {siteVideoFormat{Protocol:"m3u8_native",URL:"https://m.webcast.go.kr/vod/a.mp4/playlist.m3u8"},true},
+        {siteVideoFormat{Protocol:"m3u8",URL:"https://cdn.example.net/master.m3u8"},true},
+        {siteVideoFormat{URL:"https://vod.pstatic.net/clip.mp4",Ext:"mp4"},false},
+        {siteVideoFormat{Protocol:"http_dash_segments",URL:"https://cdn.example.net/clip.mpd"},false},
     }
-    for _,testcase:=range urls {
-        flags:=specialSiteDownloadFlags(testcase.raw)
-        if (len(flags)>0)!=testcase.want {t.Fatalf("unexpected site FFmpeg flags for %s: %v",testcase.raw,flags)}
-        if testcase.want {
+    for _,tc:=range cases {
+        flags:=specialMediaDownloadFlags(siteVideoMetadata{Formats:[]siteVideoFormat{tc.format}})
+        if (len(flags)>0)!=tc.want {t.Fatalf("unexpected downloader flags for format %+v: %v",tc.format,flags)}
+        if tc.want {
             got:=strings.Join(flags," ")
             if !strings.Contains(got,"m3u8:ffmpeg")||!strings.Contains(got,"--remux-video mp4") {
-                t.Fatalf("Assembly FFmpeg selection wrong: %v",flags)
+                t.Fatalf("HLS FFmpeg selector wrong: %v",flags)
             }
         }
     }
