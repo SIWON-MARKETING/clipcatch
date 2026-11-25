@@ -382,7 +382,7 @@ func cleanURL(raw string) (string, string, error) {
 	if u.Port() != "" && u.Port() != "80" && u.Port() != "443" {
 		return "", "", errors.New("기본 웹 포트 이외의 링크는 지원하지 않습니다")
 	}
-	if !approvedVideoHost(host) {
+	if !approvedVideoHost(host) || !approvedVideoPath(u, host) {
 		return "", "", errors.New("회사 PC 안전판에서는 검증된 영상 사이트 링크만 지원해요")
 	}
 	if len(raw) > 4096 {
@@ -404,8 +404,42 @@ func cleanURL(raw string) (string, string, error) {
 	return u.String(), host, nil
 }
 
+// Expand only exact public video pages. Do not allow every page/subdomain
+// of Naver or the Assembly site to be fetched as an arbitrary video source.
+func approvedVideoPath(u *url.URL, host string) bool {
+    switch host {
+    case "m.naver.com":
+        if u.Scheme != "https" || u.Port() != "" ||
+            (u.EscapedPath() != "/shorts" && u.EscapedPath() != "/shorts/") {
+            return false
+        }
+        mediaID := u.Query().Get("mediaId")
+        if mediaID == "" {
+            mediaID = u.Query().Get("seedMediaId")
+        }
+        return regexp.MustCompile("^[0-9A-Fa-f]{16,64}$").MatchString(mediaID)
+    case "tv.naver.com":
+        return u.Scheme == "https" && u.Port() == "" &&
+            regexp.MustCompile("^/(?:v|embed)/[0-9]+/?$").MatchString(u.EscapedPath())
+    case "w3.assembly.go.kr":
+        q := u.Query()
+        digits := regexp.MustCompile("^[0-9]+$")
+        return u.Scheme == "https" && u.Port() == "" &&
+            u.EscapedPath() == "/main/player.do" &&
+            digits.MatchString(q.Get("mc")) && digits.MatchString(q.Get("ct1")) &&
+            digits.MatchString(q.Get("ct2")) && q.Get("ct3") != ""
+    default:
+        return true
+    }
+}
+
 // Allow listed public video platforms only. Domain boundaries are checked.
 func approvedVideoHost(host string) bool {
+    // Unlike the existing video-platform roots, these hosts are exact matches.
+    // approvedVideoPath additionally limits which pages can be queued.
+    if host == "m.naver.com" || host == "tv.naver.com" || host == "w3.assembly.go.kr" {
+        return true
+    }
 	allowed := []string{
 		"reddit.com", "redd.it", "v.redd.it", "youtube.com", "youtu.be",
 		"x.com", "twitter.com", "tiktok.com", "instagram.com",
