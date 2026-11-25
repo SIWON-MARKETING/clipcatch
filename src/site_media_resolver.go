@@ -100,7 +100,7 @@ func verifiedMediaURL(raw, source string) (string, error) {
             return "", errors.New("국회 공식 영상 서버 주소가 아니야")
         }
     } else {
-        allowed := []string{"pstatic.net","naver.com","naver.net","nvideo.net","nvcdn.net","pstatics.net"}
+        allowed := []string{"pstatic.net","naver.com","naver.net","nvideo.net","nvcdn.net","pstatics.net","akamaized.net"}
         ok := false
         for _, root := range allowed {
             if host == root || strings.HasSuffix(host, "."+root) { ok = true; break }
@@ -261,6 +261,9 @@ func resolveNaverVideo(ctx context.Context,client *http.Client,page,root string)
                     safe,err:=verifiedMediaURL(raw,"naver")
                     if err!=nil {continue}
                     w,h:=intValue(rep.Width),intValue(rep.Height)
+                    // The CreatorHub MPD includes an MP4 representation and
+                    // a secondary MPEG-TS alternative. Prefer the MP4 file.
+                    if set.MimeType=="video/mp2t" { continue }
                     audio:=strings.HasPrefix(set.MimeType,"audio/") || strings.EqualFold(set.ContentType,"audio")
                     if !audio && h==0 && w==0 {continue}
                     id:="v"; ext:="mp4";vcodec:="avc1";acodec:="none"
@@ -274,6 +277,17 @@ func resolveNaverVideo(ctx context.Context,client *http.Client,page,root string)
         }
     }
     if len(formats)==0 {return out,errors.New("네이버 클립 재생 주소를 찾지 못했어")}
+    hasSeparateAudio:=false
+    for _,f:=range formats {if f.VCodec=="none" {hasSeparateAudio=true}}
+    if !hasSeparateAudio {
+        // Official CLIP MPD commonly has only a video/mp4 AdaptationSet:
+        // its video file may carry audio as well. Do not incorrectly mark it
+        // as silent and make yt-dlp's best-combined format selector reject it.
+        for i:=range formats {
+            if formats[i].VCodec!="none" {formats[i].ACodec="mp4a.40.2"}
+        }
+    }
+
     // The original yt-dlp format selector bv*+ba/b handles separate audio and
     // video tracks; do not invent a single combined file if audio is separate.
     sort.SliceStable(formats,func(i,j int)bool{
