@@ -36,7 +36,7 @@ async function load(){
  protocolReady=false;working=true;buttons();
  try{
   const hello=await message({kind:'hello'});
-  if(hello?.build!=='1.9.2'||hello?.channel!=='test'){ $('reloadExtension').hidden=false;throw Error('CC-EXT-VERSION: 확장 새로고침 후 다시 열어 주세요.');}
+  if(hello?.build!=='1.9.2'||hello?.channel!=='stable'){ $('reloadExtension').hidden=false;throw Error('CC-EXT-VERSION: 확장 새로고침 후 다시 열어 주세요.');}
   protocolReady=true;$('reloadExtension').hidden=true;
   const preference=await message({kind:'output-mode'});$('outputMode').value=preference.mode;modeNote();
   const state=await message({kind:'status'});paired=state.paired;updateBlocked=!!state.backend?.update_required||!!state.backend?.update_checking;$('connectionTitle').textContent=paired?'ClipCatch 연결됨':'처음 한 번 · ClipCatch 연결';if(!paired)$('connection').open=true;$('redditTools').hidden=state.page_type!=='reddit';
