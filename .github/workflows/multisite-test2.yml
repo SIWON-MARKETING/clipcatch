@@ -39,7 +39,7 @@ jobs:
         shell: pwsh
         working-directory: src
         run: |
-          go test -count=1 -timeout=3m -run '^Test(AssemblyOfficialMetadataResolution|NaverOfficialPlaybackMetadataAndSeparateAudio|MediaURLSafetyAndInfoFileCleanup|OfficialVideoPagesRetainParameters|NewPublicVideoPages|TrialExtensionIsolatedFromStableSource)$' .
+          go test -count=1 -timeout=3m -run '^Test(HLSUsesFFmpegWhileDirectMP4AndDASHKeepExistingDownloader|AssemblyOfficialMetadataResolution|NaverOfficialPlaybackMetadataAndSeparateAudio|MediaURLSafetyAndInfoFileCleanup|OfficialVideoPagesRetainParameters|NewPublicVideoPages|TrialExtensionIsolatedFromStableSource)$' .
           if ($LASTEXITCODE -ne 0) { throw 'Official site resolver tests failed' }
           go vet ./...
           if ($LASTEXITCODE -ne 0) { throw 'Go vet failed' }
