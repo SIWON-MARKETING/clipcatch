@@ -418,6 +418,10 @@ func approvedVideoPath(u *url.URL, host string) bool {
             mediaID = u.Query().Get("seedMediaId")
         }
         return regexp.MustCompile("^[0-9A-Fa-f]{16,64}$").MatchString(mediaID)
+    case "clip.naver.com":
+        return u.Scheme == "https" && u.Port() == "" &&
+            (u.EscapedPath() == "/contents" || u.EscapedPath() == "/contents/") &&
+            regexp.MustCompile("^[0-9A-Fa-f]{16,64}$").MatchString(u.Query().Get("seedMediaId"))
     case "tv.naver.com":
         return u.Scheme == "https" && u.Port() == "" &&
             regexp.MustCompile("^/(?:v|embed)/[0-9]+/?$").MatchString(u.EscapedPath())
@@ -427,7 +431,8 @@ func approvedVideoPath(u *url.URL, host string) bool {
         return u.Scheme == "https" && u.Port() == "" &&
             u.EscapedPath() == "/main/player.do" &&
             digits.MatchString(q.Get("mc")) && digits.MatchString(q.Get("ct1")) &&
-            digits.MatchString(q.Get("ct2")) && q.Get("ct3") != ""
+            digits.MatchString(q.Get("ct2")) &&
+            regexp.MustCompile("^[A-Za-z0-9]{1,12}$").MatchString(q.Get("ct3"))
     default:
         return true
     }
@@ -437,7 +442,7 @@ func approvedVideoPath(u *url.URL, host string) bool {
 func approvedVideoHost(host string) bool {
     // Unlike the existing video-platform roots, these hosts are exact matches.
     // approvedVideoPath additionally limits which pages can be queued.
-    if host == "m.naver.com" || host == "tv.naver.com" || host == "w3.assembly.go.kr" {
+    if host == "m.naver.com" || host == "clip.naver.com" || host == "tv.naver.com" || host == "w3.assembly.go.kr" {
         return true
     }
 	allowed := []string{
