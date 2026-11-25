@@ -2,6 +2,8 @@ package main
 
 import (
     "strings"
+    "os"
+    "path/filepath"
     "testing"
 )
 
@@ -46,5 +48,37 @@ func TestNewVideoPageKeepsRequiredParameters(t *testing.T) {
     clean, _, err := cleanURL(raw)
     if err != nil || strings.Contains(clean, "utm_source") || !strings.Contains(clean, "ct3=V2") || !strings.Contains(clean, "wv=1") {
         t.Fatalf("page parameters changed: %s, err=%v", clean, err)
+    }
+}
+
+func TestTrialExtensionIsolatedFromStableSource(t *testing.T) {
+    original := appChannel
+    defer func(){ appChannel = original }()
+    appChannel = "stable"
+    stable := newApp(t.TempDir(), t.TempDir())
+    stableFolder, err := stable.installBrowserExtension()
+    if err != nil { t.Fatal(err) }
+    stableWorker, err := os.ReadFile(filepath.Join(stableFolder, "background.js"))
+    if err != nil { t.Fatal(err) }
+    if !strings.Contains(string(stableWorker), "channel:'stable'") && !strings.Contains(string(stableWorker), "channel: 'stable'") {
+        // Existing stable worker must retain the real production pairing checks.
+        if !strings.Contains(string(stableWorker), "'stable'") { t.Fatal("stable extension identity overwritten") }
+    }
+    appChannel = "test"
+    trial := newApp(t.TempDir(), t.TempDir())
+    trialFolder, err := trial.installBrowserExtension()
+    if err != nil { t.Fatal(err) }
+    trialWorker, err := os.ReadFile(filepath.Join(trialFolder, "background.js"))
+    if err != nil { t.Fatal(err) }
+    if !strings.Contains(string(trialWorker), "'clipcatch-test2'") || !strings.Contains(string(trialWorker), "'test'") {
+        t.Fatal("trial extension did not receive its own pairing identity")
+    }
+    trialPopup, err := os.ReadFile(filepath.Join(trialFolder, "popup.js"))
+    if err != nil || !strings.Contains(string(trialPopup), "hello?.channel!=='test'") {
+        t.Fatal("trial popup still uses the production channel")
+    }
+    manifest, err := os.ReadFile(filepath.Join(trialFolder, "manifest.json"))
+    if err != nil || !strings.Contains(string(manifest), "ClipCatch Browser TEST2") {
+        t.Fatal("trial browser extension is not identified as TEST2")
     }
 }
