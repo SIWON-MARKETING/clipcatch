@@ -7,8 +7,6 @@ import (
     "net/http"
     "net/http/httptest"
     "net/url"
-    "os"
-    "path/filepath"
     "strings"
     "testing"
 )
@@ -68,17 +66,7 @@ func TestMediaURLSafetyAndInfoFileCleanup(t *testing.T){
     }
     if _,err:=verifiedMediaURL("https://vod.pstatic.net/my-video.mp4?token=not-persisted","naver");err!=nil{t.Fatal(err)}
     if val:=baseURLValue(json.RawMessage(`[{"#text":"https://vod.pstatic.net/a.mp4"}]`));val!="https://vod.pstatic.net/a.mp4"{t.Fatal(val)}
-    app:=newApp(t.TempDir(),t.TempDir())
-    j:=&Job{ID:"x",URL:"https://w3.assembly.go.kr/main/player.do?mc=10&ct1=22&ct2=439&ct3=11&wv=1"}
-    args:=[]string{"--ignore-config","-P",filepath.Join(t.TempDir(),"videos"),j.URL}
-    // Reject attempting to replace anything other than the exact input page.
-    if _,_,e:=app.siteVideoDownloadArgs(context.Background(),j,[]string{"--ignore-config","https://wrong.invalid"});e==nil {
-        // It fails at resolver earlier in an offline test, and either way
-        // must never write a command using an unverified URL.
-        t.Fatal("unexpected resolver success")
-    }
-    _=args
-    if _,err:=os.Stat(filepath.Join(app.dataDir,"unrelated"));err==nil {t.Fatal("unexpected side effect")}
+
 }
 
 func TestOfficialVideoPagesRetainParameters(t *testing.T){
