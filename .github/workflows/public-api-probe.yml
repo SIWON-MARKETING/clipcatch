@@ -85,5 +85,16 @@ jobs:
                       item=items[0]
                       vod=item.get('vod') or {}
                       print('NAVER first media',{k:item.get(k) for k in ['serviceType','mediaType']},'vod playable',vod.get('playable'),'playback keys',sorted((vod.get('playback') or {}).keys()))
+                      for mpd in (vod.get('playback') or {}).get('MPD',[])[:1]:
+                          for per in mpd.get('Period',[])[:1]:
+                              for aset in per.get('AdaptationSet',[])[:6]:
+                                  reps=aset.get('Representation') or []
+                                  print('NAVER SET',aset.get('@mimeType'),aset.get('@contentType'),'reps',len(reps))
+                                  for rep in reps[:2]:
+                                      base=rep.get('BaseURL')
+                                      first=base[0] if isinstance(base,list) and base else base
+                                      pu=urlparse(str(first)) if isinstance(first,str) else None
+                                      print('NAVER FORMAT','height',rep.get('@height'),'width',rep.get('@width'),'BaseURL type',type(base).__name__,'CDN host',pu.hostname if pu else None,'BaseURL nested type',type(first).__name__)
+
               except Exception as e: print('NAVER playback ERROR',kind,type(e).__name__,str(e)[:180])
           '@ | python -
