@@ -15,7 +15,7 @@ async function localRequest(link,path,body,authorized=true){
 }
 async function checkBackend(link){
  const r=await localRequest(link,'/bridge/status',{ids:[]});
- if(r.app!=='clipcatch'||r.channel!=='stable'||!r.capabilities?.includes('job-status'))throw Error('ClipCatch 전용 연결이 필요합니다. 운영 중인 ClipCatch를 실행해 주세요.');
+ if(r.app!=='clipcatch-test2'||r.channel!=='test'||!r.capabilities?.includes('job-status'))throw Error('ClipCatch 전용 연결이 필요합니다. ClipCatch TEST2를 실행해 주세요.');
  return r;
 }
 async function rememberJobs(result,title,mode,key=""){
@@ -43,7 +43,7 @@ async function readOutputMode(value){
  return mode;
 }
 async function handle(m){
- if(m.kind==='hello')return {build:'1.9.2',channel:'stable',capabilities:['output-mode','job-status']};
+ if(m.kind==='hello')return {build:'1.9.2',channel:'test',capabilities:['output-mode','job-status']};
  if(m.kind==='output-mode'){
   const mode=await readOutputMode(m.value);
   if(m.value!==undefined)await chrome.storage.local.set({outputMode:mode});
@@ -53,8 +53,8 @@ async function handle(m){
  if(m.kind==='pair'){
   const code=pairingCode(m.value);
   if(['18765','18766'].includes(new URL(code.base).port))throw Error('테스트판 연결 주소는 사용할 수 없습니다. 운영판에서 연결 코드를 복사해 주세요.');
-  const r=await localRequest(code,'/bridge/pair',{code:code.code,channel:'stable'},false);
-  if(r.channel!=='stable')throw Error('ClipCatch 운영판이 아닌 프로그램입니다. 연결하지 않았습니다.');
+  const r=await localRequest(code,'/bridge/pair',{code:code.code,channel:'test'},false);
+  if(r.channel!=='test')throw Error('ClipCatch TEST2가 아닌 프로그램입니다. 연결하지 않았습니다.');
   if(r.protocol!==1||!/^[a-f0-9]{64}$/.test(r.token))throw Error('Unsupported ClipCatch protocol');
   const link={base:code.base,token:r.token,version:r.version};await checkBackend(link);await chrome.storage.local.set({link,recentTransfers:[]});return {paired:true};
  }
@@ -64,7 +64,7 @@ async function handle(m){
   if(!link)return {paired:false,jobs:[]};
   const {recentTransfers=[]}=await chrome.storage.local.get('recentTransfers');
   const info=await localRequest(link,'/bridge/status',{ids:recentTransfers.map(x=>x.id).slice(0,30)});
-  if(info.app!=='clipcatch'||info.channel!=='stable'||!info.capabilities?.includes('job-status'))throw Error('ClipCatch 연결을 확인해 주세요.');
+  if(info.app!=='clipcatch-test2'||info.channel!=='test'||!info.capabilities?.includes('job-status'))throw Error('ClipCatch 연결을 확인해 주세요.');
   return {...info,paired:true,jobs:recentTransfers.map(x=>({...x,...(info.jobs.find(j=>j.id===x.id)||{status:'unavailable'})}))};
  }
  if(m.kind==='open-folder'){if(!link)throw Error('ClipCatch와 먼저 연결해 주세요.');await checkBackend(link);return localRequest(link,'/bridge/open-folder',{});}
