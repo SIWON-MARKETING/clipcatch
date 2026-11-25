@@ -318,14 +318,14 @@ func resolveSiteVideo(ctx context.Context,page string, client *http.Client) (sit
     return siteVideoMetadata{},errors.New("지원하지 않는 사이트 주소야")
 }
 
-// Use FFmpeg's HLS downloader for long Assembly recordings. The native
-// fragment path can produce containers that later fail FFprobe validation.
-// Limit this to official Assembly HLS; all other sites keep their behavior.
-func specialSiteDownloadFlags(page string) []string {
-    u, err := url.Parse(page)
-    if err != nil || u.Scheme != "https" { return nil }
-    if u.Hostname() == "w3.assembly.go.kr" && u.Path == "/main/player.do" {
-        return []string{"--downloader", "m3u8:ffmpeg", "--remux-video", "mp4"}
+// HLS is a *format*, not a site. Prefer FFmpeg's HLS downloader for all
+// resolver-provided HLS streams to avoid native fragment container issues.
+// Direct MP4 and DASH inputs retain the existing yt-dlp behavior.
+func specialMediaDownloadFlags(media siteVideoMetadata) []string {
+    for _, format := range media.Formats {
+        if format.Protocol == "m3u8_native" || format.Protocol == "m3u8" {
+            return []string{"--downloader", "m3u8:ffmpeg", "--remux-video", "mp4"}
+        }
     }
     return nil
 }
@@ -359,6 +359,6 @@ func (a *App) siteVideoDownloadArgs(ctx context.Context,j *Job,args []string) ([
     if len(args)==0 || args[len(args)-1]!=j.URL {
         cleanup();return nil,nil,errors.New("다운로드 입력을 확인하지 못했어")
     }
-    args=append(append(append([]string{},args[:len(args)-1]...),specialSiteDownloadFlags(j.URL)...),"--load-info-json",filepath.Clean(f.Name()))
+    args=append(append(append([]string{},args[:len(args)-1]...),specialMediaDownloadFlags(media)...),"--load-info-json",filepath.Clean(f.Name()))
     return args,cleanup,nil
 }
