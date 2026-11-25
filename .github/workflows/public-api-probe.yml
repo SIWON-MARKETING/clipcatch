@@ -61,6 +61,7 @@ jobs:
                           elif isinstance(paths,str):urls=[paths]
                           else:urls=[]
                           for media in urls[-2:]:
+                              if media.startswith('//'): media='https:'+media
                               pu=urlparse(media)
                               print('ASSEMBLY media',pu.scheme,pu.hostname,pu.path[-80:])
                               if pu.scheme in ('http','https') and pu.path.endswith('.m3u8'):
@@ -71,7 +72,7 @@ jobs:
                       except Exception as e:print('ASSEMBLY fileInfo failed',wv,type(e).__name__,str(e)[:160])
               else: print('ASSEMBLY no movieList, data keys',list(data))
           except Exception as e: print('ASSEMBLY ERROR',type(e).__name__,str(e)[:160])
-          naver='https://clip.naver.com/api/v3.0/clip/playback'
+          naver='https://creatorhub-api.naver.com/api/v3.0/clip/playback'
           sample='3C8DF44C96A26217490A1AB575D276BEF723'
           for kind in ['CHZZK','CLIP']:
               try:
