@@ -111,7 +111,7 @@ jobs:
 
   render-e2e-ubuntu:
     if: github.head_ref == 'test/clipcatch-preview-2.0.1-test.10'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 16
     steps:
       - uses: actions/checkout@v4
