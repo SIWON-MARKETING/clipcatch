@@ -13,9 +13,9 @@ html=(WEB/'index.html').read_text(encoding='utf-8')
 extra=['premiere.js','quality.js','workspace-tabs.js','startup-update.js','lifecycle.js',
        'inline-download-ui.js','segment-enhancement.js']
 html=html.replace('</body>', ''.join('<script src="/'+x+'"></script>' for x in extra)+'</body>',1)
-html=html.replace('__APP_VERSION__','2.0.1-test.9')
+html=html.replace('__APP_VERSION__','2.0.1-test.10')
 posted=[]
-state={'version':'2.0.1-test.9','channel':'preview','phase':'ready','jobs':[],
+state={'version':'2.0.1-test.10','channel':'preview','phase':'ready','jobs':[],
        'save_dir':'C:\\ClipCatch\\Downloads','output_mode':'original',
        'app_update':{'status':'current'},'update_required':False,
        'engine':{'channel':'stable','message':'ready'}}
@@ -66,7 +66,11 @@ with sync_playwright() as p:
     page.locator('#ccwBodyToggle').click()
     page.locator('#ccwCopy').fill('아래에서 나온 새로운 소식\n두 번째 줄의 본문')
     expect(page.locator('#ccwPreviewText')).to_contain_text('아래에서 나온')
-    expect(page.locator('#ccwInlineNumber')).to_have_text('01')
+    assert page.locator('#ccwInlineNumber').count()==0,'Yellow number must not be inserted'
+    expect(page.locator('#ccwChooseLocal')).to_be_hidden()
+    assert page.locator('#ccwFrame').evaluate('(el)=>el.getBoundingClientRect().width')>=240
+    assert page.locator('#ccwFrame .ccw-preview-gradient').evaluate('(el)=>getComputedStyle(el).backgroundImage')=='none'
+    assert page.locator('#ccwVideo').evaluate('(el)=>getComputedStyle(el).objectFit')=='contain'
     # The Bridge body template dynamically pushes two lines higher than one line.
     geometry=page.evaluate("ClipCatchSegmentV2.geometry('첫 줄\\n둘째 줄')")
     assert geometry['bodyY']>=800 and geometry['photoY']<1100,geometry
