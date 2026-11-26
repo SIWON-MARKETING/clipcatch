@@ -22,6 +22,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-go@v5
         with:
           go-version-file: src/go.mod
@@ -98,6 +99,13 @@ jobs:
             if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
             $proc.Dispose()
           }
+          # Match this tester-only binary to the exact branch source commit.
+          $expected = '${{ github.event.pull_request.head.sha }}'
+          $buildMeta = (& go version -m $exe | Out-String)
+          if ($buildMeta -notmatch [regex]::Escape($expected)) {
+            throw 'Built EXE source commit does not match the test branch'
+          }
+          $expected | Set-Content dist-preview/SOURCE-COMMIT.txt -Encoding ascii
           (Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant() + '  ClipCatch-Preview-V2.exe' | Set-Content dist-preview/SHA256SUMS -Encoding ascii
 
       - name: Upload only standalone Preview EXE and checksum
@@ -117,6 +125,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-go@v5
         with:
           go-version-file: src/go.mod
