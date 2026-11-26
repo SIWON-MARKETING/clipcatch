@@ -120,6 +120,11 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: src/go.mod
+      - name: Install FFmpeg for standalone media integration test
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
       - name: Generate a synthetic local clip and verify 1080x1350 H264/AAC export
         shell: bash
         working-directory: src
