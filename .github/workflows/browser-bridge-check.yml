@@ -70,6 +70,9 @@ jobs:
       - name: TEST2 embedded trim UI screenshot and real-browser interactions
         if: github.head_ref == 'test/inline-download-ui-2.0.1-test6'
         run: python tests/inline-download-ui-browser.py
+      - name: Preview v2 six time fields and real segment API UI smoke test
+        if: github.head_ref == 'test/segment-render-2.0.1-p2'
+        run: python tests/segment-preview-browser.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
