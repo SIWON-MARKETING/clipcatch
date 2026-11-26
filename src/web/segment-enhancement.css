@@ -15,8 +15,11 @@
 #ccwFrame.ccw-bridge-basic .ccw-preview-gradient,
 #ccwDetailPreview.ccw-bridge-basic .ccw-preview-gradient{z-index:1}
 .ccw-preview-frame .ccw-preview-text{z-index:3;pointer-events:none}
+#ccwChooseLocal{display:none!important}
+#ccwFrame .ccw-preview-gradient,#ccwDetailPreview .ccw-preview-gradient{background:#0e0e10!important}
+#ccwFrame .ccw-preview-placeholder{padding:12px}
 .ccw-detail-preview .ccw-detail-overlay{z-index:3}
-.ccw-bridge-number{position:absolute;z-index:3;transform:translateX(-50%);color:#ffe14d;font-family:"ONE Mobile POP","ONE Mobile POP OTF","Malgun Gothic",sans-serif;line-height:1.2;white-space:nowrap;pointer-events:none}
+/* Number label deliberately removed from the video carousel. */
 .ccw-trim-actions button:disabled{opacity:.45;cursor:progress}
 #ccwInlineStatus:not([hidden]){border-top:1px solid #344453;padding-top:6px;white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:970px){
