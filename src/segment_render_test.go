@@ -41,8 +41,8 @@ func TestPreviewSegmentValidationAndArgs(t *testing.T){
 }
 
 func TestBridgeBodyDynamicPosition(t *testing.T) {
-    one:=&segmentSpec{Kind:"carousel",Caption:"안녕하세요"}
-    two:=&segmentSpec{Kind:"carousel",Caption:"안녕하세요\n두 번째 줄"}
+    one:=&segmentSpec{Start:0,End:30,Kind:"carousel",Caption:"안녕하세요"}
+    two:=&segmentSpec{Start:0,End:30,Kind:"carousel",Caption:"안녕하세요\n두 번째 줄"}
     if e:=one.validate();e!=nil{t.Fatal(e)}
     if e:=two.validate();e!=nil{t.Fatal(e)}
     size1,n1,y1,p1,e:=segmentBodyLayout(one)
