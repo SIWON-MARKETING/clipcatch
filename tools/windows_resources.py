@@ -14,8 +14,8 @@ def stroke(points):
  for x,y in pts:d.ellipse((int(x-r),int(y-r),int(x+r),int(y+r)),fill='#11171E')
 stroke([(32,14),(32,40)]);stroke([(21,29),(32,40),(43,29)]);stroke([(16,44),(16,50),(48,50),(48,44)])
 im=im.resize((256,256),Image.Resampling.LANCZOS);im.save(o/'icon.png');im.save(o/'icon.ico',sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
-fixed=a.version.split('-')[0]+'.'+(a.version.rsplit('.',1)[1]if '-'in a.version else '0');name='ClipCatch Preview'if a.preview else ('ClipCatch TEST2'if a.test2 else ('ClipCatch DEV196'if a.development else 'ClipCatch'));exe='ClipCatch-Preview.exe'if a.preview else ('ClipCatch-Test2.exe'if a.test2 else ('ClipCatch-Dev196.exe'if a.development else 'ClipCatch.exe'))
-info={'ProductName':('ClipCatch Preview'if a.preview else ('ClipCatch TEST2'if a.test2 else 'ClipCatch')),'FileDescription':name,'FileVersion':a.version,'ProductVersion':a.version,'OriginalFilename':exe,'InternalName':name}
+fixed=a.version.split('-')[0]+'.'+(a.version.rsplit('.',1)[1]if '-'in a.version else '0');name='ClipCatch Preview V2'if a.preview else ('ClipCatch TEST2'if a.test2 else ('ClipCatch DEV196'if a.development else 'ClipCatch'));exe='ClipCatch-Preview-V2.exe'if a.preview else ('ClipCatch-Test2.exe'if a.test2 else ('ClipCatch-Dev196.exe'if a.development else 'ClipCatch.exe'))
+info={'ProductName':('ClipCatch Preview V2'if a.preview else ('ClipCatch TEST2'if a.test2 else 'ClipCatch')),'FileDescription':name,'FileVersion':a.version,'ProductVersion':a.version,'OriginalFilename':exe,'InternalName':name}
 res={'RT_GROUP_ICON':{'APP':{'0000':'icon.ico'}},'RT_VERSION':{'#1':{'0000':{'fixed':{'file_version':fixed,'product_version':fixed,'flags':'Prerelease'if (a.development or a.test2 or a.preview) else ''},'info':{'0409':info,'0412':info}}}}}
 (o/'winres.json').write_text(json.dumps(res,indent=2)+'\n',encoding='utf-8')
 if not a.prepare_only:subprocess.run(['go','run','github.com/tc-hib/go-winres@v0.3.3','make','--arch','amd64','--in','winres/winres.json','--out','rsrc'],cwd=R/'src',check=True)
