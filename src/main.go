@@ -1196,6 +1196,9 @@ func (a *App) bootstrap() {
 		a.setSetup("error", "설치 폴더 생성 실패", err.Error(), 0)
 		return
 	}
+	// Preview V2 can reuse the previous Preview engine without sharing writable
+	// files or re-downloading 100 MB tools. Production and TEST2 are untouched.
+	copyExistingPreviewTools(a.toolDir)
 	if err := os.MkdirAll(a.saveDir, 0755); err != nil {
 		a.setSetup("error", "저장 폴더 생성 실패", err.Error(), 0)
 		return
