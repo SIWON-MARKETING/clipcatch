@@ -1494,10 +1494,10 @@ func main() {
 		applyClipCatchUpdate(os.Args[2:])
 		return
 	}
-	if runtime.GOOS == "windows" && updateLaunchGate() {
+	if runtime.GOOS == "windows" && !isPreviewBuild() && updateLaunchGate() {
 		return
 	}
-	if installAndRelaunch() {
+	if !isPreviewBuild() && installAndRelaunch() {
 		return
 	}
 	configBase, err := os.UserConfigDir()
@@ -1558,11 +1558,17 @@ func main() {
 		return
 	}
 	a := newApp(dataDir, savedir)
-	a.requireStartupCheck = a.state.AppUpdate.Status == "checking"
+	if isPreviewBuild() {
+		// Portable Preview never checks TEST2 releases or blocks downloads for updates.
+		a.state.AppUpdate = UpdateInfo{Status: "current", Latest: appVersion, Detail: "독립 실행형 Preview: 자동 업데이트 비활성"}
+	}
+	a.requireStartupCheck = !isPreviewBuild() && a.state.AppUpdate.Status == "checking"
 	defer a.stopWork()
 	a.server = &http.Server{Handler: http.HandlerFunc(a.serveHTTP), ReadHeaderTimeout: 10 * time.Second}
 	go a.bootstrap()
-	go a.watchAppUpdates()
+	if !isPreviewBuild() {
+		go a.watchAppUpdates()
+	}
 	go a.worker()
 	addr := "http://" + listener.Addr().String() + "/"
 	log.Println("Web UI running", addr)
