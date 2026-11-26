@@ -15,7 +15,7 @@ func isTrialBuild() bool { return appChannel == "test" || isPreviewBuild() }
 func runtimeAppID() string {
     switch appChannel {
     case "preview":
-        return "clipcatch-preview"
+        return "clipcatch-preview-v2"
     case "test":
         return "clipcatch-test2"
     default:
@@ -25,7 +25,7 @@ func runtimeAppID() string {
 func runtimeDataName() string {
     switch appChannel {
     case "preview":
-        return "ClipCatch-Preview"
+        return "ClipCatch-Preview-V2"
     case "test":
         return "ClipCatch-Test2"
     default:
@@ -35,7 +35,7 @@ func runtimeDataName() string {
 func runtimePort() string {
     switch appChannel {
     case "preview":
-        return "18767"
+        return "18768"
     case "test":
         return "18766"
     default:
@@ -46,7 +46,7 @@ func runtimeSaveDir(home string) string {
     name, key := "ClipCatch", "CLIPCATCH_SAVEDIR"
     switch appChannel {
     case "preview":
-        name, key = "ClipCatch-Preview", "CLIPCATCH_PREVIEW_SAVEDIR"
+        name, key = "ClipCatch-Preview-V2", "CLIPCATCH_PREVIEW_SAVEDIR"
     case "test":
         name, key = "ClipCatch-Test2", "CLIPCATCH_TEST2_SAVEDIR"
     }
