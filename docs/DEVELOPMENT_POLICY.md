@@ -21,3 +21,7 @@ Rejected scope: first-run explanatory popup, file-open/location buttons, save-fo
 User authorized development and release on 2026-10-27. Baseline: v1.9.9 / 3c001a3681294beac6b3e1b3f8adc2c6f793bc52.
 Approved scope: activity-only stable update discovery, shared/persisted one-hour cooldown, last-tab shutdown with a 15-second grace and active-work protection. Existing updater verification, transactions and release identity remain unchanged.
 Native candidate checks now include running 1.9.9, locked backup/concurrent helpers and real Chrome lifecycle. Published official 1.9.9 button/manual paths are checked separately after release. This is not a claim of testing the design team workstation.
+
+## Test build version tracking
+
+From 2026-11-26, all Preview/TEST builds must be traceable in GitHub by unique version, exact source commit, isolated test branch, build checksums and verification status. Stable behavior and deployment remain separately gated. See [TEST_VERSIONING.md](TEST_VERSIONING.md) for the naming, evidence, retention and safety rules.
