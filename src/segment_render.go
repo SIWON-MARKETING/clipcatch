@@ -14,8 +14,7 @@ import (
     "math"
     "net/http"
     "os"
-    "os/exec"
-    "path/filepath"
+        "path/filepath"
     "regexp"
     "runtime"
     "strconv"
@@ -310,11 +309,11 @@ func (a *App) renderSegmentCarousel(parent context.Context,id,ff,source string,s
     if e=copyFileSimple(font,filepath.Join(work,"localfont"+filepath.Ext(font)));e!=nil{return "",e}
     fontName:="localfont"+filepath.Ext(font)
     if e=os.WriteFile(filepath.Join(work,"caption.txt"),[]byte(s.Caption),0600);e!=nil{return "",e}
-    filterFit:="increase"
-    if s.Advanced && s.Fit=="contain" {filterFit="decrease"}
-    base:="[0:v]scale=1080:1350:force_original_aspect_ratio="+filterFit+
-        ",pad=1080:1350:(ow-iw)/2:(oh-ih)/2:color=0x0e0e10,"+
-        "crop=1080:1350,setsar=1,fps=30,format=rgba[base];"+
+    geometry:="scale=1080:1350:force_original_aspect_ratio=increase,crop=1080:1350"
+    if s.Advanced && s.Fit=="contain" {
+        geometry="scale=1080:1350:force_original_aspect_ratio=decrease,pad=1080:1350:(ow-iw)/2:(oh-ih)/2:color=0x0e0e10"
+    }
+    base:="[0:v]"+geometry+",setsar=1,fps=30,format=rgba[base];"+
         "[base][1:v]overlay=0:0:shortest=1,format=yuv420p"
     textX:="(w-text_w)/2"
     if s.Advanced {textX=fmt.Sprintf("(w*%.5f)-(text_w/2)",s.X/100)}
