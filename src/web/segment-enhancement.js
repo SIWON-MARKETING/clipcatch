@@ -41,7 +41,7 @@
   const parts=prefix=>[...document.querySelectorAll('#ccw'+prefix+'Hour, #ccw'+prefix+'Minute, #ccw'+prefix+'Second')];
   function seconds(prefix){
     const fields=parts(prefix);const arr=fields.map(f=>f.value.trim());
-    if(arr.some(x=>x===''||!/^\\d{1,2}$/.test(x)))return null;
+    if(arr.some(x=>x===''||!/^\d{1,2}$/.test(x)))return null;
     const [h,m,s]=arr.map(Number);
     if(h>23||m>59||s>59)return null;
     return 3600*h+60*m+s;
@@ -101,11 +101,19 @@
     const body=(draft.body||'').trim();
     const layout=bodyGeometry(body||' ');
     const basic=!draft.advanced;
+    // While the detailed editor is actively being adjusted, show its draft
+    // instead of overwriting the user's current slider preview with Basic style.
     for(const [frame,label,number,frameWidth] of [
       [$('ccwFrame'),$('ccwPreviewText'),inlineNum,Number($('ccwFrame').getBoundingClientRect().width)||130],
       [$('ccwDetailPreview'),$('ccwDetailOverlay'),detailNum,Number($('ccwDetailPreview').getBoundingClientRect().width)||239]
     ]){
       if(!frame||!label||!number)continue;
+      const editingDetail=frame.id==='ccwDetailPreview' && $('ccwDetailDialog').open && editTouched;
+      if(editingDetail){
+        frame.classList.remove('ccw-bridge-basic');number.hidden=true;
+        for(const prop of ['top','bottom','font-size','line-height','color','left','right','width','transform'])label.style.removeProperty(prop);
+        continue;
+      }
       frame.classList.toggle('ccw-bridge-basic',basic);
       number.hidden=!body||!basic;
       const posPct=100*layout.numberY/1350;
