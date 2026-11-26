@@ -32,7 +32,7 @@ func TestPreviewSegmentValidationAndArgs(t *testing.T){
     j:=&Job{ID:"123",URL:"https://w3.assembly.go.kr/main/player.do?mc=10&ct1=22&ct2=439&ct3=11",Segment:&segmentSpec{Start:62,End:92}}
     args:=segmentArgs(j,[]string{"--ignore-config","-o","video.%(ext)s",j.URL})
     joined:=strings.Join(args,"|")
-    for _,want:=range []string{"--download-sections","*00:01:02-00:01:32","--force-keyframes-at-cuts","--remux-video","mp4","[123]"}{
+    for _,want:=range []string{"--download-sections","*00:01:02-00:01:32","--force-keyframes-at-cuts","[123]"}{
         if !strings.Contains(joined,want)&&want!="[123]" {t.Errorf("missing %q in %s",want,joined)}
     }
     if args[len(args)-1]!=j.URL {t.Fatal("URL must be last for first-party Assembly resolver")}
@@ -49,7 +49,7 @@ func TestBridgeBodyDynamicPosition(t *testing.T) {
     if e!=nil{t.Fatal(e)}
     size2,n2,y2,p2,e:=segmentBodyLayout(two)
     if e!=nil{t.Fatal(e)}
-    if size1!=76||size2!=76||p2>=p1||y2>=y1||n2>=n1 {
+    if size1!=76||size2!=76||p2>=p1||y2>=y1||n1!=0||n2!=0 {
         t.Fatalf("body must expand upward by lines: 1(%d,%d,%d,%d) 2(%d,%d,%d,%d)",size1,n1,y1,p1,size2,n2,y2,p2)
     }
     if y2<800||y2>1250||p2<750 {t.Fatalf("body no longer lower card: y=%d photo=%d",y2,p2)}
@@ -57,7 +57,12 @@ func TestBridgeBodyDynamicPosition(t *testing.T) {
     if e:=makeSectionShade(shade,p2);e!=nil{t.Fatal(e)}
     f,e:=os.Open(shade);if e!=nil{t.Fatal(e)};defer f.Close()
     img,e:=png.Decode(f);if e!=nil{t.Fatal(e)}
-    if img.Bounds().Dx()!=1080||img.Bounds().Dy()!=1350 {t.Fatal("wrong gradient output size")}
+    if img.Bounds().Dx()!=1080||img.Bounds().Dy()!=1350 {t.Fatal("wrong caption mask size")}
+    top:=img.At(25,p2-1);_,_,_,ta:=top.RGBA()
+    bottom:=img.At(25,p2+1);br,bg,bb,ba:=bottom.RGBA()
+    if ta!=0 || ba!=0xffff || (br>>8)!=14 || (bg>>8)!=14 || (bb>>8)!=16 {
+        t.Fatalf("caption area must be solid black without gradient: topA=%d bottom=%d,%d,%d,%d",ta,br>>8,bg>>8,bb>>8,ba)
+    }
 }
 
 func TestPreviewSegmentAPIIsIsolatedAndRedditUsesExtensionOnly(t *testing.T) {
@@ -122,4 +127,32 @@ func TestSegmentFFmpegLocalCarouselEndToEnd(t *testing.T) {
        t.Fatalf("wrong 1080x1350 H264 AAC output: %s",data)
     }
     fmt.Println("PASS: 1.2-second local source -> 1080x1350 H264/AAC video file")
+}
+
+func TestSegmentFFmpegLocalClipHasPlayableSound(t *testing.T) {
+    if os.Getenv("CLIPCATCH_SEGMENT_MEDIA_TEST")!="1" {t.Skip("local FFmpeg fixture test opt-in")}
+    if runtime.GOOS=="windows" {t.Skip("Linux FFmpeg fixture in CI")}
+    ff,e:=exec.LookPath("ffmpeg");if e!=nil {t.Skip("FFmpeg unavailable")}
+    root:=t.TempDir()
+    source:=filepath.Join(root,"with-audio.mp4")
+    cmd:=exec.Command(ff,"-v","error","-y",
+        "-f","lavfi","-i","testsrc2=size=640x360:rate=30",
+        "-f","lavfi","-i","sine=frequency=440:sample_rate=48000",
+        "-t","1.2","-c:v","libx264","-preset","ultrafast",
+        "-c:a","aac","-b:a","128k",source)
+    if data,err:=cmd.CombinedOutput();err!=nil {t.Fatalf("fixture: %v %s",err,data)}
+    a:=newApp(filepath.Join(root,"data"),filepath.Join(root,"output"))
+    if e:=os.MkdirAll(a.dataDir,0700);e!=nil{t.Fatal(e)}
+    spec:=&segmentSpec{Kind:"clip",Start:0,End:2}
+    ctx,cancel:=context.WithTimeout(context.Background(),time.Minute);defer cancel()
+    file,e:=a.renderSegmentClip(ctx,"test-audio",ff,source,spec,1.2,true)
+    if e!=nil{t.Fatalf("segment H264/AAC render failed: %v",e)}
+    if e=verifySegmentMP4(ctx,ff,file,1.2,true);e!=nil{t.Fatal(e)}
+    actual:=exec.Command(ff,"-hide_banner","-loglevel","error","-i",file,
+        "-vn","-t","0.5","-ac","1","-ar","8000","-f","s16le","-")
+    pcm,e:=actual.Output();if e!=nil {t.Fatalf("audio decode failed: %v",e)}
+    audible:=false
+    for _,v:=range pcm {if v!=0{audible=true;break}}
+    if len(pcm)<100||!audible{t.Fatalf("AAC track contains no decoded waveform: %d bytes",len(pcm))}
+    t.Logf("PASS: section output contains decodable non-silent AAC audio, %d bytes",len(pcm))
 }
