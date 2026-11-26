@@ -14,6 +14,7 @@ originalAction.insertAdjacentHTML('afterend',"\n<div class=\"ccw-trim-actions\" 
 document.body.insertAdjacentHTML('beforeend',"\n<dialog id=\"ccwDetailDialog\" aria-labelledby=\"ccwDetailTitle\">\n  <div class=\"ccw-detail-head\">\n    <h2 id=\"ccwDetailTitle\">세부 편집 <span style=\"font-size:12px;font-weight:500;color:#b0bfcd\">/ 선택한 구간 · 영상 캐러셀</span></h2>\n    <button id=\"ccwDetailClose\" type=\"button\" aria-label=\"세부 편집 닫기\">×</button>\n  </div>\n  <div class=\"ccw-detail-grid\">\n    <div class=\"ccw-detail-stage\">\n      <div class=\"ccw-detail-preview\" id=\"ccwDetailPreview\">\n        <div class=\"ccw-preview-placeholder\" id=\"ccwDetailEmpty\">선택한 로컬 영상만<br>임시로 미리볼 수 있어</div>\n        <video id=\"ccwDetailVideo\" muted playsinline preload=\"metadata\" hidden></video>\n        <div class=\"ccw-preview-gradient\"></div>\n        <div class=\"ccw-detail-overlay\" id=\"ccwDetailOverlay\" tabindex=\"0\" aria-label=\"문구 위치 드래그\">영상에 들어갈 문구</div>\n      </div>\n    </div>\n    <div class=\"ccw-detail-controls\">\n      <div><label for=\"ccwDetailCopy\">본문 문구 <span class=\"ccw-small\">기본형과 내용 공유</span></label>\n        <textarea id=\"ccwDetailCopy\" maxlength=\"220\" rows=\"3\" placeholder=\"본문을 입력해줘\"></textarea>\n      </div>\n      <div>\n        <label for=\"ccwFontSize\">글씨 크기 <output id=\"ccwSizeLabel\" for=\"ccwFontSize\">76px</output></label>\n        <input id=\"ccwFontSize\" type=\"range\" min=\"40\" max=\"110\" step=\"1\" value=\"76\">\n      </div>\n      <div class=\"ccw-half\">\n        <label for=\"ccwColor\">글씨 색상 <input id=\"ccwColor\" type=\"color\" value=\"#ffffff\"></label>\n        <label for=\"ccwFit\">영상 맞춤 <select id=\"ccwFit\" style=\"background:#20303a;color:#fff;padding:8px;border-radius:8px;border:1px solid #455562\"><option value=\"contain\">전체 보기</option><option value=\"cover\">꽉 채우기</option></select></label>\n      </div>\n      <div><label for=\"ccwY\">글씨 위치 <span class=\"ccw-small\">왼쪽에서 직접 드래그 가능</span></label>\n        <input id=\"ccwY\" type=\"range\" min=\"15\" max=\"87\" value=\"72\"></div>\n      <div class=\"ccw-small\">기본형은 돋보기 POP 76px, 가운데 정렬·흰색 기준이야. 세부 편집을 적용한 경우에만 크기·색·위치 설정을 사용해.</div>\n    </div>\n  </div>\n  <div class=\"ccw-detail-footer\">\n    <span class=\"ccw-small\">1080 × 1350 · H.264/AAC MP4 예정 · 실제 출력 미연결</span>\n    <button class=\"ccw-secondary\" id=\"ccwResetStyle\" type=\"button\">기본형으로 되돌리기</button>\n    <button id=\"ccwApplyStyle\" type=\"button\">설정 적용</button>\n  </div>\n</dialog>\n");
 const state={mode:'full',body:'',advanced:false,size:76,color:'#ffffff',x:50,y:72,fit:'contain',previewUrl:null,videoDuration:null};
 const trimActions=$('ccwTrimActions'),dialog=$('ccwDetailDialog');
+const draft={size:76,color:'#ffffff',x:50,y:72,fit:'contain'};
 function timeParse(s){
   if(!/^\d{1,3}:\d{2}:\d{2}$/.test(s))return null;
   const [h,m,sec]=s.split(':').map(Number);
@@ -44,10 +45,10 @@ function updatePreview(){
   inline.textContent=txt;
   detail.textContent=txt||'영상에 들어갈 문구';
   const scale=239/1080;
-  detail.style.fontSize=(style.size*scale).toFixed(2)+'px';
-  detail.style.color=style.color;
-  detail.style.left=style.x+'%';
-  detail.style.top=style.y+'%';
+  detail.style.fontSize=(draft.size*scale).toFixed(2)+'px';
+  detail.style.color=draft.color;
+  detail.style.left=draft.x+'%';
+  detail.style.top=draft.y+'%';
   inline.style.color=style.color;
   inline.style.fontSize=(style.size*178/1080).toFixed(2)+'px';
   inline.style.left=(style.x-45)+'%';
@@ -95,7 +96,8 @@ $('ccwCopy').addEventListener('input',e=>bodyChange(e.target.value));
 $('ccwDetailCopy').addEventListener('input',e=>bodyChange(e.target.value));
 function openDetail(){
  $('ccwDetailCopy').value=state.body;
- $('ccwFontSize').value=String(state.size);
+ Object.assign(draft,{size:state.size,color:state.color,x:state.x,y:state.y,fit:state.fit});
+ $('ccwFontSize').value=String(draft.size);
  $('ccwSizeLabel').textContent=state.size+'px';
  $('ccwColor').value=state.color;
  $('ccwY').value=String(state.y);
@@ -106,35 +108,37 @@ function openDetail(){
 $('ccwDetailOpen').addEventListener('click',openDetail);
 $('ccwDetailClose').addEventListener('click',()=>dialog.close());
 function syncControls(){
- state.size=Number($('ccwFontSize').value);
- state.color=$('ccwColor').value;
- state.y=Number($('ccwY').value);
- state.fit=$('ccwFit').value;
- $('ccwSizeLabel').textContent=state.size+'px';
+ draft.size=Number($('ccwFontSize').value);
+ draft.color=$('ccwColor').value;
+ draft.y=Number($('ccwY').value);
+ draft.fit=$('ccwFit').value;
+ $('ccwSizeLabel').textContent=draft.size+'px';
  updatePreview();
 }
 ['ccwFontSize','ccwColor','ccwY','ccwFit'].forEach(id=>$(id).addEventListener('input',syncControls));
 let drag=null;
 $('ccwDetailOverlay').addEventListener('pointerdown',e=>{
-  const el=e.currentTarget;drag={x:e.clientX,y:e.clientY,left:state.x,top:state.y};el.setPointerCapture(e.pointerId);
+  const el=e.currentTarget;drag={x:e.clientX,y:e.clientY,left:draft.x,top:draft.y};el.setPointerCapture(e.pointerId);
 });
 $('ccwDetailOverlay').addEventListener('pointermove',e=>{
   if(!drag)return;
   const rect=$('ccwDetailPreview').getBoundingClientRect();
-  state.x=Math.max(10,Math.min(90,drag.left+(e.clientX-drag.x)/rect.width*100));
-  state.y=Math.max(15,Math.min(87,drag.top+(e.clientY-drag.y)/rect.height*100));
-  $('ccwY').value=String(Math.round(state.y));
+  draft.x=Math.max(10,Math.min(90,drag.left+(e.clientX-drag.x)/rect.width*100));
+  draft.y=Math.max(15,Math.min(87,drag.top+(e.clientY-drag.y)/rect.height*100));
+  $('ccwY').value=String(Math.round(draft.y));
   updatePreview();
 });
 ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>$('ccwDetailOverlay').addEventListener(ev,()=>{drag=null;}));
 function resetStyle(){
  state.advanced=false;state.size=76;state.color='#ffffff';state.x=50;state.y=72;state.fit='contain';
+ Object.assign(draft,{size:76,color:'#ffffff',x:50,y:72,fit:'contain'});
  $('ccwFontSize').value='76';$('ccwColor').value='#ffffff';$('ccwY').value='72';$('ccwFit').value='contain';
  $('ccwSizeLabel').textContent='76px';
  updatePreview();
 }
 $('ccwResetStyle').addEventListener('click',()=>{resetStyle();dialog.close();setStatus('기본형을 적용했어. 본문은 그대로 유지돼.');});
 $('ccwApplyStyle').addEventListener('click',()=>{
+ Object.assign(state,draft);
  state.advanced=true;updatePreview();dialog.close();
  $('ccwCopySection').hidden=false;
  $('ccwBodyToggle').setAttribute('aria-expanded','true');
@@ -145,7 +149,7 @@ function uiOnly(which){
  const r=range();
  if(!r.valid){setStatus('시간을 HH:MM:SS 형식으로 입력하고 시작보다 종료를 늦게 지정해줘.',true);$('ccwStart').focus();return;}
  if(!$('urlInput').value.trim()&&!state.previewUrl){setStatus('영상 링크를 먼저 넣어줘.',true);$('urlInput').focus();return;}
- if(which==='carousel'&&!state.body.trim()){setStatus('영상 캐러셀을 만들려면 본문을 입력해줘.',true);$('ccwBodyToggle').click();return;}
+ if(which==='carousel'&&!state.body.trim()){setStatus('영상 캐러셀을 만들려면 본문을 입력해줘.',true);if($('ccwCopySection').hidden)$('ccwBodyToggle').click();$('ccwCopy').focus();return;}
  setStatus('입력한 구간 '+timeFormat(r.start)+' ~ '+timeFormat(r.end)+' 확인 완료 · 지금은 UI 시제품이라 '+(which==='carousel'?'1080×1350 MP4 제작':'구간 다운로드')+'은 아직 실행되지 않아.');
 }
 $('ccwTrimOnly').addEventListener('click',()=>uiOnly('trim'));
