@@ -39,7 +39,7 @@ func (a *App) managedDownloadDir(j *Job) bool {
 	return e == nil && string(receipt) == j.ID
 }
 func (a *App) downloadRoot(j *Job) string {
-	if a.managedDownloadDir(j) {
+	if a.managedDownloadDir(j) || a.isSegmentWorkspace(j) {
 		return j.DownloadDir
 	}
 	return a.saveDir
