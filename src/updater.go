@@ -553,7 +553,7 @@ func logUpdate(msg string) {
 
 func installedExePath() string {
 	if isPreviewBuild() {
-		return filepath.Join(os.Getenv("LOCALAPPDATA"), "Programs", "ClipCatch-Preview", "ClipCatch-Preview.exe")
+		return filepath.Join(os.Getenv("LOCALAPPDATA"), "Programs", "ClipCatch-Preview-V2", "ClipCatch-Preview-V2.exe")
 	}
 	if isTrialBuild() {
 		return filepath.Join(os.Getenv("LOCALAPPDATA"), "Programs", "ClipCatch-Test2", "ClipCatch-Test2.exe")
