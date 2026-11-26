@@ -27,7 +27,7 @@ func validateBuildIdentity(b buildIdentity) error {
 		_, e := parseSemver(b.Version)
 		return e
 	}
-	if b.Channel == "test" && b.App == "clipcatch-test2" {
+	if (b.Channel == "test" && b.App == "clipcatch-test2") || (b.Channel == "preview" && b.App == "clipcatch-preview-v2") {
 		_, e := parseTrialVersion(b.Version)
 		return e
 	}
@@ -71,6 +71,9 @@ func verifyInstallerIdentity(path, version string) error {
 	return nil
 }
 func buildLabel() string {
+	if isPreviewBuild() {
+		return "PREVIEW 독립 실행판"
+	}
 	if isTrialBuild() {
 		return "TEST2 \ud14c\uc2a4\ud2b8\ud310"
 	}

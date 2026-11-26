@@ -1,0 +1,100 @@
+name: ClipCatch public Assembly/Naver API probes
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/public-api-probe.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  read-public-playback-metadata:
+    if: github.head_ref == 'test/multisite-2.0.1-test3'
+    runs-on: windows-latest
+    timeout-minutes: 8
+    env:
+      PYTHONIOENCODING: utf-8
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Probe public playback API metadata only (no video download)
+        shell: pwsh
+        run: |
+          @'
+          import json, time
+          from urllib.parse import urlencode,urlparse
+          from urllib.request import Request,urlopen
+          q={'mc':'10','ct1':'22','ct2':'439','ct3':'11','no':'','wv':'1','vv':str(int(time.time()))}
+          host='https://w3.assembly.go.kr'
+          referer=host+'/main/player.do?menu=10&mc=10&ct1=22&ct2=439&ct3=11&wv=1'
+          def request(url,post=None,headers=None):
+              head={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/129.0 Safari/537.36','Accept':'application/json,*/*','Accept-Language':'ko-KR,ko;q=0.9'}
+              head.update(headers or {})
+              raw=None if post is None else json.dumps(post).encode()
+              if raw is not None:head['Content-Type']='application/json'
+              with urlopen(Request(url,data=raw,headers=head),timeout=18) as r:
+                  return r.status,r.headers.get('Content-Type',''),r.read(200000)
+          try:
+              u=host+'/main/service/movie.do?'+urlencode({'cmd':'movieInfo',**q})
+              status,typ,raw=request(u,headers={'Referer':referer})
+              data=json.loads(raw)
+              print('ASSEMBLY movieInfo',status,'keys',sorted(data.keys()),'movie count',len(data.get('movieList') or []),'confTitle? ',bool(data.get('confTitle')))
+              movies=data.get('movieList') or []
+              if movies:
+                  first=movies[0]
+                  print('ASSEMBLY first movie safe fields',{k:first.get(k) for k in ['no','wv','qvod','movieTitle','playTime']})
+                  for wv in [1,0]:
+                      q['no']=str(first.get('no',''));q['wv']=str(wv)
+                      u=host+'/main/service/movie.do?'+urlencode({'cmd':'fileInfo',**q,'xreferer':''})
+                      try:
+                          status,typ,raw=request(u,headers={'Referer':referer})
+                          filedata=json.loads(raw)
+                          paths=filedata.get('filePath') or {}
+                          print('ASSEMBLY fileInfo',wv,'status',status,'keys',sorted(filedata.keys()),'title?',bool(filedata.get('movieTitle')),'filePath typeof',type(paths).__name__)
+                          if isinstance(paths,dict):
+                              print('ASSEMBLY quality keys',sorted(paths.keys()))
+                              urls=[val for key,val in paths.items() if key in ('240p','480p','720p','1080p') and isinstance(val,str)]
+                          elif isinstance(paths,str):urls=[paths]
+                          else:urls=[]
+                          for media in urls[-2:]:
+                              if media.startswith('//'): media='https:'+media
+                              pu=urlparse(media)
+                              print('ASSEMBLY media',pu.scheme,pu.hostname,pu.path[-80:])
+                              if pu.scheme in ('http','https') and pu.path.endswith('.m3u8'):
+                                  try:
+                                      status,typ,raw=request(media,headers={'Referer':referer})
+                                      print('ASSEMBLY manifest probe',status,typ,'m3u8',raw.startswith(b'#EXTM3U'),'bytes',len(raw))
+                                  except Exception as e:print('ASSEMBLY manifest probe failed',type(e).__name__,str(e)[:140])
+                      except Exception as e:print('ASSEMBLY fileInfo failed',wv,type(e).__name__,str(e)[:160])
+              else: print('ASSEMBLY no movieList, data keys',list(data))
+          except Exception as e: print('ASSEMBLY ERROR',type(e).__name__,str(e)[:160])
+          naver='https://creatorhub-api.naver.com/api/v3.0/clip/playback'
+          sample='3C8DF44C96A26217490A1AB575D276BEF723'
+          for kind in ['CHZZK','CLIP']:
+              try:
+                  status,typ,raw=request(naver,post={'media':[{'videoId':sample,'serviceType':kind}]},headers={'Referer':'https://clip.naver.com/contents','Origin':'https://clip.naver.com'})
+                  obj=json.loads(raw)
+                  print('NAVER playback',kind,status,'keys',sorted(obj.keys()),'code',obj.get('code'),'body-keys',sorted((obj.get('body') or {}).keys()))
+                  items=(obj.get('media') or (obj.get('body') or {}).get('media') or [])
+                  print('NAVER media count',len(items))
+                  if items:
+                      item=items[0]
+                      vod=item.get('vod') or {}
+                      print('NAVER first media',{k:item.get(k) for k in ['serviceType','mediaType']},'vod playable',vod.get('playable'),'playback keys',sorted((vod.get('playback') or {}).keys()))
+                      for mpd in (vod.get('playback') or {}).get('MPD',[])[:1]:
+                          for per in mpd.get('Period',[])[:1]:
+                              for aset in per.get('AdaptationSet',[])[:6]:
+                                  reps=aset.get('Representation') or []
+                                  print('NAVER SET',aset.get('@mimeType'),aset.get('@contentType'),'reps',len(reps))
+                                  for rep in reps[:2]:
+                                      base=rep.get('BaseURL')
+                                      first=base[0] if isinstance(base,list) and base else base
+                                      pu=urlparse(str(first)) if isinstance(first,str) else None
+                                      print('NAVER FORMAT','height',rep.get('@height'),'width',rep.get('@width'),'BaseURL type',type(base).__name__,'CDN host',pu.hostname if pu else None,'BaseURL nested type',type(first).__name__)
+
+              except Exception as e: print('NAVER playback ERROR',kind,type(e).__name__,str(e)[:180])
+          '@ | python -
