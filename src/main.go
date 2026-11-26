@@ -209,6 +209,9 @@ func (a *App) routes() {
 		html := strings.ReplaceAll(strings.Replace(string(b), "</body>", "<script src=\"/premiere.js\"></script><script src=\"/quality.js\"></script><script src=\"/workspace-tabs.js\"></script><script src=\"/startup-update.js\"></script><script src=\"/lifecycle.js\"></script></body>", 1), "__APP_VERSION__", appVersion)
 		if isTrialBuild() {
 			html = strings.Replace(html, "</body>", "<script src=\"/inline-download-ui.js\"></script></body>", 1)
+			if isPreviewBuild() {
+				html = strings.Replace(html, "</body>", "<script src=\"/segment-enhancement.js\"></script></body>", 1)
+			}
 		}
 		_, _ = w.Write([]byte(html))
 	})
@@ -309,6 +312,8 @@ func (a *App) routes() {
 	for _, asset := range []struct { file, contentType string }{
 		{"inline-download-ui.js", "text/javascript; charset=utf-8"},
 		{"inline-download-ui.css", "text/css; charset=utf-8"},
+		{"segment-enhancement.js", "text/javascript; charset=utf-8"},
+		{"segment-enhancement.css", "text/css; charset=utf-8"},
 	} {
 		asset := asset
 		mux.HandleFunc("GET /"+asset.file, func(w http.ResponseWriter, r *http.Request) {
