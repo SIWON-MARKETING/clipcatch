@@ -148,8 +148,8 @@ func (a *App) pairBrowser(w http.ResponseWriter, r *http.Request, origin string)
 		writeError(w, 400, "Invalid pairing request")
 		return
 	}
-	if isTrialBuild() && in.Channel != "test" {
-		writeError(w, 409, "테스트판은 ClipCatch Browser TEST2와만 연결됩니다.")
+	if isTrialBuild() && in.Channel != appChannel {
+		writeError(w, 409, "현재 시험판에 맞는 별도 브라우저 확장프로그램으로 연결해줘.")
 		return
 	}
 	token, e := newBrowserSecret()
@@ -233,17 +233,19 @@ func (a *App) installBrowserExtension() (string, error) {
 			return "", e
 		}
 		if isTrialBuild() {
-			// Only the isolated TEST2 installation changes its copy. Keep the
-			// embedded stable extension unchanged for stable regression tests.
+			// Clone only the extension installed into this profile; embedded stable
+			// extension and other running ClipCatch instances stay unchanged.
+			extensionApp, label := runtimeAppID(), "TEST2"
+			if isPreviewBuild() { label = "Preview" }
 			switch ent.Name() {
 			case "background.js":
 				b = []byte(strings.ReplaceAll(strings.ReplaceAll(string(b),
-					"'clipcatch'", "'clipcatch-test2'"), "'stable'", "'test'"))
+					"'clipcatch'", "'"+extensionApp+"'"), "'stable'", "'"+appChannel+"'"))
 			case "popup.js":
 				b = []byte(strings.ReplaceAll(string(b),
-					"hello?.channel!=='stable'", "hello?.channel!=='test'"))
+					"hello?.channel!=='stable'", "hello?.channel!=='"+appChannel+"'"))
 			case "manifest.json":
-				b = []byte(strings.ReplaceAll(string(b), "ClipCatch Browser", "ClipCatch Browser TEST2"))
+				b = []byte(strings.ReplaceAll(string(b), "ClipCatch Browser", "ClipCatch Browser "+label))
 			}
 		}
 		if e = os.WriteFile(filepath.Join(dir, ent.Name()), b, 0600); e != nil {
