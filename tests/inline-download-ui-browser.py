@@ -81,6 +81,7 @@ with sync_playwright() as p:
     page.locator("#ccwTrimOnly").click()
     expect(page.locator("#ccwInlineStatus")).to_contain_text("아직 실행되지 않아")
     assert not download_posts, "UI-only trim action must not call full download endpoint"
+    page.evaluate("window.scrollTo(0,0)")
     page.screenshot(path=str(OUT/"inline_ui_trim_1366.png"),full_page=False)
 
     page.locator("#ccwDetailOpen").click()
@@ -100,6 +101,7 @@ with sync_playwright() as p:
     expect(page.locator("#ccwCopy")).to_have_value("국회에서 포착된\n이 장면")
 
     page.set_viewport_size({"width": 1536, "height": 900})
+    page.evaluate("window.scrollTo(0,0)")
     page.screenshot(path=str(OUT/"inline_ui_trim_1536.png"),full_page=False)
     # Existing full download path must still be callable from the original tab.
     page.locator("#ccwAll").click()
