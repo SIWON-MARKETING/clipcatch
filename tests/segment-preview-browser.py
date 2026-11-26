@@ -45,8 +45,8 @@ with sync_playwright() as p:
     browser=p.chromium.launch(headless=True)
     page=browser.new_page(viewport={'width':1366,'height':768},device_scale_factor=1)
     errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
-    page.route('http://127.0.0.1:18767/**',serve)
-    page.goto('http://127.0.0.1:18767/')
+    page.route('http://127.0.0.1:18768/**',serve)
+    page.goto('http://127.0.0.1:18768/')
     expect(page.locator('#ccwWorkflow')).to_be_visible()
     assert page.locator('.workspace-tabs [role=tab]').count()==3,'Must use existing tab'
     page.locator('#ccwPart').click()
