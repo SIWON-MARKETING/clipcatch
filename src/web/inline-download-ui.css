@@ -74,3 +74,28 @@
 @media(max-width:850px){.ccw-quickgrid{grid-template-columns:minmax(0,1fr) 205px}.ccw-preview-frame{height:192px;width:154px}}
 @media(max-width:690px){.ccw-mode{align-items:flex-start}.ccw-summary{margin-left:0;width:100%}.ccw-quickgrid{grid-template-columns:1fr}.ccw-preview-area{display:none}.ccw-detail-grid{grid-template-columns:1fr}.ccw-detail-stage{min-height:250px}.ccw-detail-preview{width:180px;height:225px}.ccw-detail-controls .ccw-half{grid-template-columns:1fr 1fr}}
 @media(max-width:410px){.ccw-times input{font-size:15px;padding:10px 6px}.ccw-trim-actions button{width:100%}.ccw-mode .ccw-segment{width:100%}.ccw-segment button{flex:1}}
+
+/* Compact the existing download screen ONLY when optional trim is expanded.
+   Keep original mode and all other tabs unchanged. */
+#downloadPanel:has(#ccwEdit:not([hidden])) .entry{padding:15px 22px 13px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .entry-head{margin-bottom:7px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .urlbox{min-height:64px;max-height:88px;padding:10px 13px;border-radius:11px;line-height:1.45}
+#downloadPanel:has(#ccwEdit:not([hidden])) .paste{top:7px;right:7px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .info-line{margin-top:6px;gap:5px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-workflow{margin-top:9px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-mode{padding:7px 11px;gap:9px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-mode .ccw-segment button{padding:7px 11px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-edit{padding:9px 13px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-quickgrid{gap:10px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-rowtitle{margin-bottom:6px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-times input{min-height:35px;padding:7px 9px;font-size:16px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-duration{margin:5px 0 7px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-preview-frame{width:130px;height:163px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-preview-area{gap:5px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-copy-section{margin-top:7px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-copy-section textarea{min-height:54px;max-height:95px;padding:7px 9px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-edit-notice{margin:5px 0 0;line-height:1.35}
+#downloadPanel:has(#ccwEdit:not([hidden])) #premierePanel{display:none}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-trim-actions{margin-top:11px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-trim-actions button{padding:11px 16px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .bottom-strip{padding:10px 22px}
