@@ -826,6 +826,15 @@ func (a *App) runDownload(id string) {
 	if j == nil || j.Status == "cancelled" || ctx.Err() != nil {
 		return
 	}
+	if err := a.prepareSegmentWorkspace(j); err != nil {
+		a.mutateJob(id, func(job *Job) {
+			job.Status = "error"
+			job.ErrorCode = "CC-426"
+			job.Detail = "구간 작업 임시 폴더를 만들지 못했어."
+			job.ErrorTitle = job.Detail
+		})
+		return
+	}
 	if err := a.prepareManagedDownload(j); err != nil {
 		a.mutateJob(id, func(job *Job) {
 			job.Status = "error"
