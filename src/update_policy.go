@@ -95,7 +95,7 @@ func parseStableUpdateHint(data []byte) (updateHint, error) {
 	if len(data) > 4096 || json.Unmarshal(data, &identity) != nil {
 		return updateHint{}, errors.New("업데이트 안내 형식이 올바르지 않습니다")
 	}
-	if identity.App != "clipcatch" || identity.Channel != "stable" || validateBuildIdentity(identity) != nil || identity.ShareURL != stableShareURL {
+	if identity.App != "clipcatch" || identity.Channel != "stable" || validateBuildIdentity(identity) != nil || (identity.ShareURL != stableShareURL && identity.ShareURL != legacyStableHintShareURL) {
 		return updateHint{}, errors.New("정식 ClipCatch 업데이트 안내가 아닙니다")
 	}
 	hash := sha256.Sum256(data)

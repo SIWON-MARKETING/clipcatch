@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   browser-and-engine:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -39,16 +39,6 @@ jobs:
       - name: FFmpeg and Korean UI test font
         timeout-minutes: 4
         run: |
-          sudo python3 - <<'PYM'
-          from pathlib import Path
-          files=[Path('/etc/apt/apt-mirrors.txt'),Path('/etc/apt/sources.list')]
-          files+=list(Path('/etc/apt/sources.list.d').glob('*.sources'))
-          files+=list(Path('/etc/apt/sources.list.d').glob('*.list'))
-          for p in files:
-              if p.exists():
-                  s=p.read_text()
-                  p.write_text(s.replace('azure.archive.ubuntu.com','archive.ubuntu.com'))
-          PYM
           sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 update -qq
           sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 install --no-install-recommends -y ffmpeg fonts-noto-cjk
           ffmpeg -version | head -n 1

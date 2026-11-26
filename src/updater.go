@@ -21,7 +21,7 @@ import (
 
 // clipcatch is the public distribution repository. No access token is needed to check releases.
 const (
-	clipCatchReleaseRepo = "shindongyoon-siwon/clipcatch"
+	clipCatchReleaseRepo = "SIWON-MARKETING/clipcatch"
 	clipCatchReleaseAPI  = "https://api.github.com/repos/" + clipCatchReleaseRepo + "/releases/latest"
 )
 

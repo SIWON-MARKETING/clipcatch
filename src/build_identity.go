@@ -12,6 +12,10 @@ import (
 
 const stableShareURL = "https://github.com/" + clipCatchReleaseRepo + "/releases/latest/download/ClipCatch.exe"
 
+// Historical build-info.json contains this exact link. It is accepted only as
+// a stable change hint, never as an executable or checksum download location.
+const legacyStableHintShareURL = "https://github.com/shindongyoon-siwon/clipcatch/releases/latest/download/ClipCatch.exe"
+
 type buildIdentity struct {
 	App      string `json:"app"`
 	Channel  string `json:"channel"`

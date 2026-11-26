@@ -9,7 +9,8 @@ version=(Path(__file__).resolve().parents[1]/'VERSION').read_text().strip()
 root=Path(tempfile.mkdtemp(prefix='clipcatch-update197-'));base='http://127.0.0.1:8765'
 old_version=sys.argv[3] if len(sys.argv)>3 else '1.9.7'
 hashes={'1.9.9':'68c61e89bac6ac465822cb7521b9821d49bffcdcc346c88c43cef183a323fc58','1.9.7':'c59d40e27bc508e672a546371982e6ddb2a3733c46dca67b037cd6755d0fe843','1.9.8':'8477eaa0350d6efd0531a3d0e9dd9b524aa9f5cefd0c0e044927de997e571f40'}
-old=root/'old.exe';url=f'https://github.com/shindongyoon-siwon/clipcatch/releases/download/v{old_version}/ClipCatch.exe'
+hashes['2.0.0']='dd7a433e07d8ec3ac2b1eb4ef1917b3c427263b01210a949e68995880399b996'
+old=root/'old.exe';url=f'https://github.com/SIWON-MARKETING/clipcatch/releases/download/v{old_version}/ClipCatch.exe'
 expected=hashes[old_version]
 for attempt in range(3):
  try:
@@ -70,8 +71,8 @@ try:
  count=len(originals);again=subprocess.Popen(args,env=env,stdout=log,stderr=log);procs.append(again);assert again.wait(timeout=20)==0
  assert len(list(target.parent.glob('ClipCatch.exe.backup-*')))==count
  assert get('/api/health')['version']==version
- (out/'native-update197-checks.json').write_text(json.dumps({'version':version,'actual_old_version':old_version,'actual_old_was_running':True,'graceful_process_exit_confirmed':True,'locked_legacy_backup_preserved':True,'new_previous_binary_preserved':True,'two_concurrent_helpers_safe':True,'repeated_current_helper_no_second_swap':True,'history_preference_original_preserved':True,'real_user_machine_tested':False},indent=2))
- print('Native running-1.9.7, locked-backup, concurrent-helper and preservation checks passed')
+ (out/'native-update197-checks.json').write_text(json.dumps({'version':version,'actual_old_version':old_version,'actual_old_was_running':True,'direct_helper_transaction_test':True,'downloaded_exe_user_path_tested':False,'graceful_process_exit_confirmed':True,'locked_legacy_backup_preserved':True,'new_previous_binary_preserved':True,'two_concurrent_helpers_safe':True,'repeated_current_helper_no_second_swap':True,'history_preference_original_preserved':True,'real_user_machine_tested':False},indent=2))
+ print(f'Native running-{old_version}, locked-backup, concurrent-helper and preservation checks passed')
 finally:
  stop();time.sleep(1)
  for p in procs:

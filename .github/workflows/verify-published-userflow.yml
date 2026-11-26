@@ -30,7 +30,7 @@ jobs:
           path: dist
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
-      - name: Actual published old apps through Chrome update button and downloaded EXE
+      - name: Published legacy apps through one-time downloaded EXE replacement
         shell: pwsh
         run: |
           python -m pip install playwright==1.55.0

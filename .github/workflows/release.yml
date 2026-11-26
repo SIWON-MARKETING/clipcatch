@@ -43,6 +43,7 @@ jobs:
         env:
           CLIPCATCH_QUALITY_TEST: '1'
           CLIPCATCH_EDIT_MEDIA_TEST: '1'
+          CLIPCATCH_BUILD_ID_TEST: '1'
         run: |
           set -euo pipefail
           go test -race -count=1 -timeout=8m -v ./... | tee ../release-evidence/media-regression.log
@@ -86,11 +87,13 @@ jobs:
           mkdir -p src/quality_bundle dist release-evidence previous
           curl --fail --location --retry 2 --max-time 120 --proto '=https' --proto-redir '=https' https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-windows.zip -o src/quality_bundle/windows.zip
           echo 'abc02804e17982a3be33675e4d471e91ea374e65b70167abc09e31acb412802d  src/quality_bundle/windows.zip' | sha256sum -c -
-          curl --fail --location --retry 2 --max-time 120 --proto '=https' --proto-redir '=https' https://github.com/shindongyoon-siwon/clipcatch/releases/download/v1.9.5/ClipCatch.exe -o previous/ClipCatch-1.9.5.exe
+          curl --fail --location --retry 2 --max-time 120 --proto '=https' --proto-redir '=https' https://github.com/SIWON-MARKETING/clipcatch/releases/download/v1.9.5/ClipCatch.exe -o previous/ClipCatch-1.9.5.exe
           echo 'df331d554c62bdc544406f63460153c0daae02aa188de2c0a049b2a6c4baa3a5  previous/ClipCatch-1.9.5.exe' | sha256sum -c -
       - name: Windows unit, installer and rollback regression
         working-directory: src
         shell: pwsh
+        env:
+          CLIPCATCH_BUILD_ID_TEST: '1'
         run: |
           go test -tags bundled_ai -count=1 -timeout=8m -v ./... 2>&1 | Tee-Object ../release-evidence/windows-tests.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -104,6 +107,10 @@ jobs:
           python tests/workspace_ui.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python tests/batch_workspace_offline.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tests/update_dialog.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tests/auto_update_ui.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --test tests/browser-core.test.mjs tests/feed-core.test.mjs tests/feed-worker.test.mjs tests/transfer-state.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

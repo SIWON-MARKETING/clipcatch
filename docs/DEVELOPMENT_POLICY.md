@@ -25,3 +25,15 @@ Native candidate checks now include running 1.9.9, locked backup/concurrent help
 ## Test build version tracking
 
 From 2026-11-26, all Preview/TEST builds must be traceable in GitHub by unique version, exact source commit, isolated test branch, build checksums and verification status. Stable behavior and deployment remain separately gated. See [TEST_VERSIONING.md](TEST_VERSIONING.md) for the naming, evidence, retention and safety rules.
+
+## v2.0.1 repository transfer repair
+
+On 2026-11-26, the user authorized uploading the organization updater repair,
+validation, main integration and stable publication. Baseline:
+`0100b1a928009f7c7e9a186216a05284be41f5c2` on `SIWON-MARKETING/clipcatch`.
+Scope: official organization release URLs, historical stable hint handling,
+legacy installer-cache rejection, strict release verification and matching UI
+links. Existing Preview/TEST2 branches, draft PRs and stable update cadence remain
+independent. Old published executables need one manual download/run of the fixed
+stable release. Require successful PR and main native Windows/media checks;
+verify the published artifact and legacy manual replacement routes afterwards.
