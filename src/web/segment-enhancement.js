@@ -139,7 +139,25 @@
         label.style.setProperty('width',(1008/1080*100)+'%','important');
         label.style.setProperty('transform','translateX(-50%)','important');
       }else{
-        for(const key of ['top','bottom','font-size','line-height','color','left','right','width','transform'])label.style.removeProperty(key);
+        const size=(draft.size||76)*frameWidth/1080;
+        label.style.setProperty('font-size',size+'px');
+        label.style.setProperty('line-height','1.2');
+        label.style.setProperty('color',draft.color||'#ffffff');
+        if(frame.id==='ccwDetailPreview'){
+          label.style.setProperty('top',(draft.y||72)+'%');
+          label.style.setProperty('bottom','auto');
+          label.style.setProperty('left',(draft.x||50)+'%');
+          label.style.setProperty('right','auto');
+          label.style.setProperty('width','90%');
+          label.style.setProperty('transform','translate(-50%,-50%)');
+        }else{
+          label.style.setProperty('top',(draft.y||72)+'%');
+          label.style.setProperty('bottom','auto');
+          label.style.setProperty('left',(draft.x||50)+'%');
+          label.style.setProperty('right','auto');
+          label.style.setProperty('width','90%');
+          label.style.setProperty('transform','translate(-50%,-50%)');
+        }
       }
     }
     const captionLabel=$('ccwCopyStyle');
