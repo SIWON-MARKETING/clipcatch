@@ -1,11 +1,25 @@
 # GitHub 조직 이전 후 자동 업데이트 복구
 
-상태: 2026-11-26 사용자 지시에 따라 GitHub 반영·검증·정식 배포를 진행하는 v2.0.1 수정안. 공개 여부와 Windows 검사 결과는 해당 PR 및 Release Actions 기록으로 확인한다.
+상태: 2026-11-26 v2.0.1 정식 배포 완료. PR과 main의 Windows·미디어 검사, 공개 실행파일 일치 확인, 구버전 4종의 수동 교체 검증을 통과했다.
+
+## 배포 및 공개 검증 기록
+
+- [정식 v2.0.1](https://github.com/SIWON-MARKETING/clipcatch/releases/tag/v2.0.1)
+- [수정 PR #26](https://github.com/SIWON-MARKETING/clipcatch/pull/26): 정식판 병합 완료
+- [main 빌드·설치·교체·배포 검사](https://github.com/SIWON-MARKETING/clipcatch/actions/runs/45803665818): 통과
+- [게시 후 실제 공개 교체 경로](https://github.com/SIWON-MARKETING/clipcatch/actions/runs/45804657669): 통과
+- 배포 소스: `811b545676f58999e0caed91031517b87a55cd7c`; 검증한 소스 트리: `f1a3e766d20a174e04f6f5dfdb2cd41585115531`
+- 공개 `ClipCatch.exe` SHA-256: `58d2bc37a1faab688b0bb05e8a03ea20dd2052c7af48e9a6e58c783438ae0098`
+- 공식 공개 주소에서 EXE·build-info·SHA256SUMS를 직접 내려받아 GitHub 자산 digest 및 체크섬 일치를 확인했다. EXE의 Go 빌드 정보도 위 소스 커밋과 `vcs.modified=false`로 일치한다.
+- 공개 build-info는 정식 앱 `clipcatch`, 버전 `2.0.1`, 새 조직의 최신 EXE 공유 주소를 갖는다.
+- Windows 실제 실행 환경에서 공개 v2.0.0·1.9.9·1.9.8·1.9.6을 실행한 뒤 새 EXE를 실행하는 경로로 v2.0.1 교체, 기록·설정·원본 보존, Chrome 버튼을 통한 정확한 폴더 열기를 확인했다. 이 공개 교체 검사에서는 업데이트 헬퍼를 직접 호출하지 않았다.
+- 기존 브랜치 보존 및 Preview 초안 [PR #25](https://github.com/SIWON-MARKETING/clipcatch/pull/25)의 초안·미병합 상태를 확인했다.
+- 위 검사는 GitHub의 Windows 환경에서 수행했다. 사용자 PC나 미래의 다음 정식 버전으로의 공개 업데이트를 실측한 것으로 표시하지 않는다.
 
 - 대상 저장소: `SIWON-MARKETING/clipcatch`
 - 기준 브랜치: `main`, 커밋 `0100b1a928009f7c7e9a186216a05284be41f5c2`
-- 제안 브랜치: `fix/github-organization-updater`
-- 정식 버전: `2.0.1`. PR 검증 성공 후 main에 병합하며, main의 독립적인 빌드·검증을 통과한 실행파일만 정식 릴리스로 게시한다.
+- 수정 브랜치: `fix/github-organization-updater`
+- 정식 버전: `2.0.1`. PR 검증 후 main에 병합했으며, main의 독립적인 빌드·검증을 통과한 실행파일을 정식 릴리스로 게시했다.
 
 ## 원인과 수정
 
@@ -57,8 +71,8 @@ Preview 기준은 `test/clipcatch-preview-2.0.1-test.10` 커밋 `57fd6ae2030c522
 | `go vet ./...` | 통과 |
 | Windows amd64 테스트 바이너리·앱 교차 컴파일 | 통과. 실행하지 않음. 결과물은 검토용이며 배포하지 않음 |
 | 변경 워크플로 YAML·Python 테스트 문법·JS 문법·공백 검사 | 통과 |
-| `tests/update_dialog.py`, `tests/auto_update_ui.py`, `tests/workspace_ui.py` | DOM 검증 전에 브라우저 실행이 차단됨. 통과 처리하지 않음. 준비한 Chrome이 실행 환경의 로컬 소켓 제한으로 종료됨 |
-| Windows 실제 실행·설치·롤백·수동 교체 | 로컬 Linux에서는 미실행. PR 및 main Windows Actions에서 실행하며, 결과는 해당 Actions 기록을 확인한다 |
+| `tests/update_dialog.py`, `tests/auto_update_ui.py`, `tests/workspace_ui.py` | 로컬 Linux는 소켓 제한으로 실행 불가. PR 및 main Windows Actions와 브라우저 전용 검사에서 통과 |
+| Windows 실제 실행·설치·롤백·수동 교체 | PR 및 main 검사 통과. 게시 후 공개 구버전 4종의 새 EXE 실행 경로도 통과. 위 Actions 기록 참조 |
 
 - PR용 Windows Actions는 운영판/TEST2 교체·롤백 및 Preview 경로·포트 보존, 실제 v2.0.0에서 직접 헬퍼를 통한 트랜잭션을 검사한다. 직접 헬퍼 검사는 사용자의 다운로드 EXE 실행 경로와 구분해 기록한다.
 - 게시 후 별도 워크플로는 공개 자산이 검증한 파일과 같은지 확인한 뒤 실제 v2.0.0·1.9.9·1.9.8·1.9.6에서 새 EXE 실행 경로와 기록·설정·원본 보존을 검사한다. 조직 이전으로 동작할 수 없는 예전 앱의 업데이트 버튼을 성공 조건으로 요구하지 않는다.
