@@ -5,7 +5,6 @@ import (
     "encoding/json"
     "fmt"
     "image/png"
-    "net/http"
     "net/http/httptest"
     "os"
     "os/exec"
