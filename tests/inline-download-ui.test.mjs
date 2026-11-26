@@ -37,6 +37,9 @@ function fakeUI(){
   };
   const sandbox={document:doc,window:{addEventListener(){}},URL:class FakeURL{},console};
   runInNewContext(source,sandbox);
+  // Minimal mock DOM must honor the two input default values from HTML.
+  create('ccwStart').value='00:00:00';
+  create('ccwEnd').value='00:00:30';
   return {map,create,win:sandbox.window};
 }
 test('existing full-video download remains visible and trim is inside the video-download form',()=>{
