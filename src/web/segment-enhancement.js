@@ -69,13 +69,16 @@
   const small=$('ccwTrimActions')?.querySelector('small');
   if(small)small.textContent='저장 진행 상황은 아래 작업 목록에서 확인해.';
   const previewInfo=$('ccwPreviewEmpty');
-  if(previewInfo)previewInfo.textContent='원본 링크 미리보기는 추후 지원 · 로컬 영상은 아래에서 선택 가능';
+  if(previewInfo)previewInfo.textContent='원본 링크 미리보기는 아직 지원되지 않아. 화면 배치 예시야.';
   const detailInfo=$('ccwDetailEmpty');
-  if(detailInfo)detailInfo.textContent='로컬 영상으로 미리보기 가능';
+  if(detailInfo)detailInfo.textContent='화면 배치 예시';
+  // No extra local-preview or zoom button: keep the preview on this page.
+  const localButton=$('ccwChooseLocal');if(localButton)localButton.hidden=true;
+  const fitSelect=$('ccwFit');if(fitSelect){fitSelect.value='contain';fitSelect.disabled=true;fitSelect.closest('label').hidden=true;}
 
   // Layout is based on the GitHub-owned dotbogi-a body template:
   // 1080x1350; 1008 px body width; 76 px POP; lineHeight 1.2;
-  // 18px top, 58px bottom, automatic yellow 01.
+  // 18px top, 58px bottom, no yellow numbering, solid caption background.
   // This is a template-based Preview, not a claim of pixel-exact Figma Bridge parity.
   function approxWidth(line,size){
     return [...line].reduce((n,ch)=>{
@@ -87,17 +90,9 @@
     let size=76;const lines=text.replace(/\r/g,'').split('\n');
     while(size>40 && lines.some(l=>approxWidth(l,size)>1008))size-=2;
     const height=Math.ceil(Math.max(1,lines.length)*size*1.2);
-    const numberHeight=Math.ceil(32*1.2);
-    const footer=18+numberHeight+8+height+58;
-    return {size,numberY:1350-footer+18,
-      bodyY:1350-footer+18+numberHeight+8,photoY:1350-footer};
+    const footer=18+height+58;
+    return {size,bodyY:1350-footer+18,photoY:1350-footer};
   }
-  function addNumber(frame,id){
-    const el=document.createElement('div');el.id=id;el.className='ccw-bridge-number';el.textContent='01';
-    frame.append(el);return el;
-  }
-  const inlineNum=addNumber($('ccwFrame'),'ccwInlineNumber');
-  const detailNum=addNumber($('ccwDetailPreview'),'ccwDetailNumber');
   function bridgeStyle(){
     const draft=window.ClipCatchTrimUI.getDraft();
     const body=(draft.body||'').trim();
@@ -105,31 +100,26 @@
     const basic=!draft.advanced;
     // While the detailed editor is actively being adjusted, show its draft
     // instead of overwriting the user's current slider preview with Basic style.
-    for(const [frame,label,number,frameWidth] of [
-      [$('ccwFrame'),$('ccwPreviewText'),inlineNum,Number($('ccwFrame').getBoundingClientRect().width)||130],
-      [$('ccwDetailPreview'),$('ccwDetailOverlay'),detailNum,Number($('ccwDetailPreview').getBoundingClientRect().width)||239]
+    for(const [frame,label,frameWidth] of [
+      [$('ccwFrame'),$('ccwPreviewText'),Number($('ccwFrame').getBoundingClientRect().width)||250],
+      [$('ccwDetailPreview'),$('ccwDetailOverlay'),Number($('ccwDetailPreview').getBoundingClientRect().width)||239]
     ]){
-      if(!frame||!label||!number)continue;
+      if(!frame||!label)continue;
+      const shade=frame.querySelector('.ccw-preview-gradient');
+      if(shade){
+        shade.style.top=(100*layout.photoY/1350)+'%';
+        shade.style.height='auto';shade.style.bottom='0';
+        shade.style.background='#0e0e10';
+      }
+      const placeholder=frame.querySelector('.ccw-preview-placeholder');
+      if(placeholder)placeholder.style.bottom=(100*(1350-layout.photoY)/1350)+'%';
       const editingDetail=frame.id==='ccwDetailPreview' && $('ccwDetailDialog').open && editTouched;
       if(editingDetail){
-        frame.classList.remove('ccw-bridge-basic');number.hidden=true;
+        frame.classList.remove('ccw-bridge-basic');
         for(const prop of ['top','bottom','font-size','line-height','color','left','right','width','transform'])label.style.removeProperty(prop);
         continue;
       }
       frame.classList.toggle('ccw-bridge-basic',basic);
-      number.hidden=!body||!basic;
-      const posPct=100*layout.numberY/1350;
-      number.style.top=posPct+'%';
-      number.style.fontSize=(32*frameWidth/1080)+'px';
-      number.style.left='50%';
-      const shade=frame.querySelector('.ccw-preview-gradient');
-      if(shade&&basic) {
-        shade.style.top=(100*(layout.photoY-90)/1350)+'%';
-        shade.style.height='auto';shade.style.bottom='0';
-        shade.style.background='linear-gradient(to bottom,transparent,#0e0e10 17%,#0e0e10 100%)';
-      } else if(shade) {
-        shade.style.top='auto';shade.style.height='42%';shade.style.background='linear-gradient(transparent,rgba(0,0,0,.9))';
-      }
       if(basic){
         label.style.setProperty('top',(100*layout.bodyY/1350)+'%','important');
         label.style.setProperty('bottom','auto','important');
@@ -179,7 +169,6 @@
   for(const id of ['ccwFontSize','ccwColor','ccwY','ccwFit']){
     $(id).addEventListener('input',()=>{editTouched=true;const el=$('ccwDetailOverlay');
       for(const key of ['top','bottom','font-size','line-height','color','left','right','width','transform'])el.style.removeProperty(key);
-      detailNum.hidden=true;
     });
   }
   function bridgeModalMode(){
