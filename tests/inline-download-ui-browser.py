@@ -17,9 +17,9 @@ scripts = ["premiere.js", "quality.js", "workspace-tabs.js",
            "startup-update.js", "lifecycle.js", "inline-download-ui.js"]
 html = (WEB / "index.html").read_text(encoding="utf-8")
 html = html.replace("</body>", "".join('<script src="/'+n+'"></script>' for n in scripts) + "</body>", 1)
-html = html.replace("__APP_VERSION__", "2.0.1-test.6")
+html = html.replace("__APP_VERSION__", "2.0.1-test.7")
 state = {
-    "version": "2.0.1-test.6",
+    "version": "2.0.1-test.7",
     "channel": "test",
     "phase": "ready",
     "jobs": [],
