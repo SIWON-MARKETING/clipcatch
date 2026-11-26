@@ -134,9 +134,7 @@ jobs:
         run: |
           ffmpeg -version | head -n 1
           test -f "$CLIPCATCH_PREVIEW_FONT"
-          go test -run '^TestSegmentFFmpegLocalCarouselEndToEnd
- -count=1 -v -timeout=3m .
-
+          go test -run '^TestSegmentFFmpegLocalCarouselEndToEnd$' -count=1 -v -timeout=3m .
       - name: Real public Assembly 8-second segment through ClipCatch job queue
         continue-on-error: true
         working-directory: src
@@ -145,6 +143,4 @@ jobs:
           CLIPCATCH_SEGMENT_LIVE_TEST: '1'
         run: |
           python -m pip install --disable-pip-version-check -q yt-dlp==2026.11.23
-          go test -run '^TestPreviewAssemblyLiveTrim
- -count=1 -v -timeout=3m .
-
+          go test -run '^TestPreviewAssemblyLiveTrim$' -count=1 -v -timeout=3m .
