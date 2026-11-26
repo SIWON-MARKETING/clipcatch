@@ -24,7 +24,7 @@
   detail.textContent=checking&&!required?'사용 전에 공식 최신 버전을 확인해요.':busy?'진행 중인 작업은 계속됩니다.\n작업이 끝나면 업데이트할 수 있어요.':status==='installing'?'새 버전 실행을 확인한 뒤 자동으로 열립니다.':'새 다운로드·변환·AI 작업은 업데이트 완료 후 시작할 수 있어요.\n저장한 영상과 설정은 유지돼요.';
   // Never render release Markdown/HTML as markup. No remote images or scripts.
   notes.textContent=u.notes|| (checking?'변경사항을 확인하고 있어요.':'이 버전에 등록된 안내사항이 없어요. 아래 공식 배포 페이지를 확인해 주세요.');
-  const validURL=typeof u.release_url==='string'&&/^https:\/\/github\.com\/shindongyoon-siwon\/clipcatch\/releases\/tag\/(v[0-9]+\.[0-9]+\.[0-9]+|test2-v[0-9]+\.[0-9]+\.[0-9]+-test\.[0-9]+)$/.test(u.release_url);
+  const validURL=typeof u.release_url==='string'&&/^https:\/\/github\.com\/SIWON-MARKETING\/clipcatch\/releases\/tag\/(v[0-9]+\.[0-9]+\.[0-9]+|test2-v[0-9]+\.[0-9]+\.[0-9]+-test\.[0-9]+)$/.test(u.release_url);
   link.hidden=!validURL;if(validURL)link.href=u.release_url;else link.removeAttribute('href');
   install.disabled=request||busy||checking||!required||!['available','error'].includes(status);
   install.textContent=busy?'진행 중인 작업 완료 대기':status==='downloading'?'업데이트 다운로드 '+Math.round(u.percent||0)+'%':status==='installing'?'교체 및 재시작 중':'업데이트 후 다시 시작';

@@ -87,7 +87,7 @@ with sync_playwright() as p:
 
     page.locator("#settingsPanel>summary").click()
     page.locator("#shareStable").click()
-    assert page.evaluate("window.__copied") == "https://github.com/shindongyoon-siwon/clipcatch/releases/latest/download/ClipCatch.exe"
+    assert page.evaluate("window.__copied") == "https://github.com/SIWON-MARKETING/clipcatch/releases/latest/download/ClipCatch.exe"
     page.locator("#checkAppUpdate").click()
     expect(page.locator("#updateFeedback")).to_be_visible()
     assert sum(path == "/api/check-app-update" and not (payload or {}).get("automatic") for path, payload in requests) == 1

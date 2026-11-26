@@ -64,7 +64,7 @@ class LocalAPI:
                     self.state["update_required"] = True
                     self.state["app_update"] = {
                         "status": "available", "latest": "99.0.0", "notes": "테스트용 새 버전 안내",
-                        "release_url": "https://github.com/shindongyoon-siwon/clipcatch/releases/tag/v99.0.0",
+                        "release_url": "https://github.com/SIWON-MARKETING/clipcatch/releases/tag/v99.0.0",
                     }
                 route.fulfill(json={"ok": True})
             else:
@@ -106,6 +106,8 @@ with sync_playwright() as p:
         }""")
     expect(page.locator("#requiredUpdateDialog")).to_be_visible()
     expect(page.locator("#requiredUpdateInstall")).to_be_enabled()
+    expect(page.locator(".update-notes a")).to_be_visible()
+    expect(page.locator(".update-notes a")).to_have_attribute("href", "https://github.com/SIWON-MARKETING/clipcatch/releases/tag/v99.0.0")
     page.wait_for_timeout(250)
     assert len(api.checks) == before + 1, "one event burst should produce one automatic request"
 

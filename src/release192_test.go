@@ -278,4 +278,13 @@ func TestReadVerifiedExecutableBuildIdentity(t *testing.T) {
 	if e := verifyInstallerIdentity(binary, "9.8.6"); e == nil {
 		t.Fatal("wrong version accepted")
 	}
+	if e := verifyInstallerIdentity(binary, fixtureVersion); e != nil {
+		t.Fatal("matching stable executable rejected", e)
+	}
+	oldChannel := appChannel
+	defer func() { appChannel = oldChannel }()
+	appChannel = "test"
+	if e := verifyInstallerIdentity(binary, fixtureVersion); e == nil {
+		t.Fatal("TEST2 accepted a stable executable")
+	}
 }

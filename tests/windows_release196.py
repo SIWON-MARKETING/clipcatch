@@ -36,7 +36,7 @@ class Other(BaseHTTPRequestHandler):
  def do_POST(self):
   seen.append((self.server.server_port,self.path));self.send_response(403);self.end_headers()
  def log_message(self,*args):pass
-for port in (18766,18796):
+for port in (18766,18768,18796):
  s=ThreadingHTTPServer(('127.0.0.1',port),Other);servers.append(s);threading.Thread(target=s.serve_forever,daemon=True).start()
 helper=root/'fixture-tool.go';helper.write_text('package main\nimport "fmt"\nfunc main(){fmt.Println("2026.10.27")}\n')
 subprocess.run(['go','build','-o',str(root/'fixture-tool.exe'),str(helper)],check=True,timeout=60)
@@ -47,7 +47,7 @@ def profile(name):
  data=Path(env['LOCALAPPDATA'])/'ClipCatch';tools=data/'tools';tools.mkdir(parents=True)
  for name in ('yt-dlp.exe','ffmpeg.exe','ffprobe.exe'):shutil.copy2(root/'fixture-tool.exe',tools/name)
  paths=[]
- for channel in ('ClipCatch-Dev196','ClipCatch-Test2'):
+ for channel in ('ClipCatch-Dev196','ClipCatch-Test2','ClipCatch-Preview-V2'):
   for folder in (Path(env['LOCALAPPDATA']),Path(env['LOCALAPPDATA'])/'Programs',Path(env['USERPROFILE'])/'Downloads'):
    f=folder/channel/'preserve.txt';f.parent.mkdir(parents=True,exist_ok=True);f.write_text(channel);paths.append(f)
  return env,data,{str(f):digest(f)for f in paths}
@@ -93,7 +93,9 @@ try:
  for envx in (env,env2):
   startup=Path(envx['APPDATA'])/'Microsoft/Windows/Start Menu/Programs/Startup';assert not startup.exists()or not list(startup.iterdir()),'Startup registration'
  assert not seen,seen
- result={'version':version,'stable_identity':True,'fresh_install':True,'upgrade_from_actual_1_9_5':True,'previous_binary_backup':True,'history_and_output_preference_preserved':True,'saved_original_unchanged':True,'test2_dev196_ports_and_files_untouched':True,'shortcut_creation':True,'existing_workspace_reuse':True,'production_extension_status_available':True,'bundled_ai_verified_and_activated':True,'native_folder_request_accepted':True,'folder_foreground_focus_asserted':False,'native_gpu_inference_tested':False,'native_tool_mode':'lifecycle-only stand-ins; real media regression is separate'}
+ # The separate Preview port and its install/data/output sentinels are covered
+ # alongside TEST2 above; no preview implementation is merged into stable.
+ result={'version':version,'stable_identity':True,'fresh_install':True,'upgrade_from_actual_1_9_5':True,'previous_binary_backup':True,'history_and_output_preference_preserved':True,'saved_original_unchanged':True,'test2_dev196_ports_and_files_untouched':True,'preview_port_and_files_untouched':True,'shortcut_creation':True,'existing_workspace_reuse':True,'production_extension_status_available':True,'bundled_ai_verified_and_activated':True,'native_folder_request_accepted':True,'folder_foreground_focus_asserted':False,'native_gpu_inference_tested':False,'native_tool_mode':'lifecycle-only stand-ins; real media regression is separate'}
  (out/'windows-release-checks.json').write_text(json.dumps(result,indent=2),encoding='utf-8');print(json.dumps(result))
 finally:
  try:stop()
@@ -112,5 +114,9 @@ subprocess.run([sys.executable,str(Path(__file__).with_name('windows_update198.p
 subprocess.run([sys.executable,str(Path(__file__).with_name('windows_update198.py')),str(exe),str(out/'upgrade-from198'),'1.9.8'],check=True,timeout=180)
 
 subprocess.run([sys.executable,str(Path(__file__).with_name('windows_update198.py')),str(exe),str(out/'upgrade-from199'),'1.9.9'],check=True,timeout=180)
+
+# Prepublication transaction regression uses the real v2.0.0 EXE. This invokes
+# the helper directly; the genuine downloaded-EXE path is verified after release.
+subprocess.run([sys.executable,str(Path(__file__).with_name('windows_update198.py')),str(exe),str(out/'upgrade-from200'),'2.0.0'],check=True,timeout=180)
 
 subprocess.run([sys.executable,str(Path(__file__).with_name('lifecycle200.py')),str(exe),str(out/'lifecycle200')],check=True,timeout=240)

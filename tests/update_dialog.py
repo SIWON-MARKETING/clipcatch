@@ -9,17 +9,33 @@ with sync_playwright() as p:
     page.set_content('<html><head><meta charset="utf-8"></head><body style="background:#101722;color:white;font-family:Arial"><button id="quitBtn">Exit</button><main>ClipCatch</main></body></html>')
     page.add_script_tag(content="const $=id=>document.getElementById(id);const uiVersion='1.9.2';let lastState=null;let render=st=>{lastState=st};let post=async()=>({ok:true});let poll=async()=>{};")
     page.add_script_tag(content=(ROOT/'src/web/startup-update.js').read_text())
-    st={"version":"1.9.1","channel":"stable","update_required":True,"update_checking":False,"active_tasks":0,"jobs":[],"app_update":{"status":"available","latest":"1.9.2","notes":"1. Download improvements\n2. Required update before new work\n3. <img src=x onerror=alert(1)> is text only","release_url":"https://github.com/shindongyoon-siwon/clipcatch/releases/tag/v1.9.2"}}
+    st={"version":"1.9.1","channel":"stable","update_required":True,"update_checking":False,"active_tasks":0,"jobs":[],"app_update":{"status":"available","latest":"1.9.2","notes":"1. Download improvements\n2. Required update before new work\n3. <img src=x onerror=alert(1)> is text only","release_url":"https://github.com/SIWON-MARKETING/clipcatch/releases/tag/v1.9.2"}}
     page.evaluate('(st)=>render(st)',st)
     expect(page.locator('#requiredUpdateDialog')).to_be_visible();expect(page.locator('#requiredUpdateInstall')).to_be_enabled()
+    expect(page.locator('.update-notes a')).to_be_visible()
+    expect(page.locator('.update-notes a')).to_have_attribute('href',st['app_update']['release_url'])
     expect(page.locator('#updateReleaseNotes')).to_contain_text('<img src=x')
     expect(page.locator('#updateReleaseNotes img')).to_have_count(0)
     page.keyboard.press('Escape');expect(page.locator('#requiredUpdateDialog')).to_be_visible()
     st['active_tasks']=1;page.evaluate('(st)=>render(st)',st);expect(page.locator('#requiredUpdateInstall')).to_be_disabled()
     st['active_tasks']=0;st['app_update']['status']='error';st['app_update']['detail']='Network unavailable';page.evaluate('(st)=>render(st)',st)
     expect(page.locator('#requiredUpdateDialog')).to_be_visible();expect(page.locator('#requiredUpdateInstall')).to_be_enabled()
-    st['app_update']['release_url']='javascript:alert(1)';page.evaluate('(st)=>render(st)',st);expect(page.locator('.update-notes a')).to_be_hidden()
-    st['app_update']['release_url']='https://github.com/shindongyoon-siwon/clipcatch/releases/tag/v1.9.2';st['app_update']['status']='available';page.evaluate('(st)=>render(st)',st)
+    for unsafe in (
+        'javascript:alert(1)',
+        'https://github.com/shindongyoon-siwon/clipcatch/releases/tag/v1.9.2',
+        'https://github.com/attacker/clipcatch/releases/tag/v1.9.2',
+        'https://github.com/SIWON-MARKETING/other/releases/tag/v1.9.2',
+        'https://github.com/SIWON-MARKETING/clipcatch/releases/tag/v1.9.2?redirect=evil',
+        'https://github.com/SIWON-MARKETING/clipcatch/releases/tag/v1.9.2#evil',
+    ):
+        st['app_update']['release_url']=unsafe;page.evaluate('(st)=>render(st)',st)
+        expect(page.locator('.update-notes a')).to_be_hidden()
+        assert page.locator('.update-notes a').get_attribute('href') is None
+    st['channel']='test';st['app_update']['release_url']='https://github.com/SIWON-MARKETING/clipcatch/releases/tag/test2-v1.9.2-test.1'
+    page.evaluate('(st)=>render(st)',st);expect(page.locator('.update-notes a')).to_be_visible()
+    expect(page.locator('.update-notes a')).to_have_attribute('href',st['app_update']['release_url'])
+    st['channel']='stable'
+    st['app_update']['release_url']='https://github.com/SIWON-MARKETING/clipcatch/releases/tag/v1.9.2';st['app_update']['status']='available';page.evaluate('(st)=>render(st)',st)
     out=ROOT/'qa-output';out.mkdir(exist_ok=True);page.screenshot(path=str(out/'mandatory-update-desktop.png'))
     page.set_viewport_size({"width":500,"height":780});page.screenshot(path=str(out/'mandatory-update-narrow.png'))
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'), 'page overflow'

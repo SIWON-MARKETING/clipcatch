@@ -1,4 +1,4 @@
-"""Actual Chrome -> shipped HTTP route -> Explorer; optional published updater paths.
+"""Actual Chrome -> shipped HTTP route -> Explorer; published manual repair paths.
 Runs in disposable Windows profiles. No mocked HTTP, TLS trust changes, flags to
 bypass update verification, or direct apply-update helper in the public cases.
 Tiny tools isolate startup only; media regression runs separately.
@@ -11,8 +11,9 @@ exe,out=map(lambda p:Path(p).resolve(),sys.argv[1:3]);out.mkdir(parents=True,exi
 public='--public' in sys.argv[3:]
 version=(Path(__file__).resolve().parents[1]/'VERSION').read_text().strip()
 root=Path(tempfile.mkdtemp(prefix='clipcatch-userflow199-'));base='http://127.0.0.1:8765'
-repo='https://github.com/shindongyoon-siwon/clipcatch'
+repo='https://github.com/SIWON-MARKETING/clipcatch'
 hashes={'1.9.9':'68c61e89bac6ac465822cb7521b9821d49bffcdcc346c88c43cef183a323fc58','1.9.6':'c995502a2942c33ede7f836fe1bb7178e72a4598ca127d29e5c80698fb7bbd58','1.9.8':'8477eaa0350d6efd0531a3d0e9dd9b524aa9f5cefd0c0e044927de997e571f40'}
+hashes['2.0.0']='dd7a433e07d8ec3ac2b1eb4ef1917b3c427263b01210a949e68995880399b996'
 def sha(p): return hashlib.sha256(p.read_bytes()).hexdigest()
 def get(path):
  with urllib.request.urlopen(base+path,timeout=3) as r:return json.load(r)
@@ -54,7 +55,7 @@ def fetch_old(v):
 fixture=root/'fixture.go';fixture.write_text('package main\nimport "fmt"\nfunc main(){fmt.Println("2026.10.27")}\n')
 subprocess.run(['go','build','-o',str(root/'tool.exe'),str(fixture)],check=True,timeout=90)
 if public:
- req=urllib.request.Request('https://api.github.com/repos/shindongyoon-siwon/clipcatch/releases/latest',headers={'User-Agent':'ClipCatch-release-QA'})
+ req=urllib.request.Request('https://api.github.com/repos/SIWON-MARKETING/clipcatch/releases/latest',headers={'User-Agent':'ClipCatch-release-QA'})
  with urllib.request.urlopen(req,timeout=20) as r:release=json.load(r)
  assert release['tag_name']=='v'+version and not release['draft'] and not release['prerelease'],release['tag_name']
  asset=next(a for a in release['assets'] if a['name']=='ClipCatch.exe')
@@ -112,7 +113,10 @@ def folder_click(page,path,label):
   errfile.close()
 log=(out/'userflow.log').open('w',encoding='utf-8');results=[]
 cases=[('fresh-ascii',None,'fresh'),('fresh-unicode',None,'fresh')]
-if public:cases=[('199-update-button','1.9.9','button'),('199-new-exe','1.9.9','manual'),('198-update-button','1.9.8','button'),('198-new-exe','1.9.8','manual'),('196-update-button','1.9.6','button')]
+# These shipped executables require the previous repository owner in asset
+# URLs. A redirect cannot fix their embedded validator. Test the actual manual
+# replacement route only after the fixed, checksummed release is published.
+if public:cases=[('200-new-exe','2.0.0','manual'),('199-new-exe','1.9.9','manual'),('198-new-exe','1.9.8','manual'),('196-new-exe','1.9.6','manual')]
 try:
  with sync_playwright() as pw:
   browser=pw.chromium.launch(channel='chrome',headless=False)
@@ -137,12 +141,7 @@ try:
      wait(lambda:get('/api/health')['version']==version)
     wait(lambda:get('/api/state')['phase']=='ready')
     page.goto(base,wait_until='domcontentloaded')
-    if mode=='button':
-     page.wait_for_function("['requiredUpdateInstall','installAppUpdate'].some(id=>{const e=document.getElementById(id);return e&&!e.disabled&&e.getClientRects().length>0;})",timeout=90000)
-     button=page.locator('#requiredUpdateInstall' if page.locator('#requiredUpdateDialog').is_visible() else '#installAppUpdate')
-     with page.expect_request(lambda r:r.url==base+'/api/install-app-update' and r.method=='POST'):
-      button.click()
-    elif mode=='manual':
+    if mode=='manual':
      manual=subprocess.Popen([str(exe)],env=env,stdout=log,stderr=log);processes.append(manual);assert manual.wait(timeout=45)==0
     if old_version:
      wait(lambda:get('/api/health')['version']==version,90)
@@ -164,6 +163,6 @@ try:
   browser.close()
 finally:
  log.close()
-report={'version':version,'published_real_executables':public,'browser':'installed Google Chrome (headed)','no_update_helper_invoked_directly':True,'tool_mode':'startup stand-ins only; actual Explorer and HTTP/update flows','user_pc_tested':False,'results':results}
+report={'version':version,'published_real_executables':public,'browser':'installed Google Chrome (headed)','no_update_helper_invoked_directly':True,'legacy_in_app_update':'unavailable after repository transfer; one manual replacement required','tool_mode':'startup stand-ins only; actual Explorer and HTTP/update flows','user_pc_tested':False,'results':results}
 (out/'userflow-results.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
 print(json.dumps(report,ensure_ascii=False))

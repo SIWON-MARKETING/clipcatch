@@ -1,3 +1,14 @@
+# ClipCatch v2.0.1: organization repository update repair
+
+Update discovery, verified downloads and sharing now target
+`SIWON-MARKETING/clipcatch`. Existing v2.0.0 and older executables require one
+manual download/run of the fixed v2.0.1 stable release after publication; the
+old executables cannot accept the transferred release asset URLs. Keep existing
+data folders. Stable activity-only checks and the persisted one-hour cooldown
+are retained. Existing Preview/TEST2 branches and draft PRs remain separate.
+See [v2.0.1 notes](docs/releases/v2.0.1.md) and
+[migration details and verification limits](docs/UPDATE_REPOSITORY_TRANSFER.md).
+
 # ClipCatch v1.9.5
 
 Checks for updates on startup and when the workspace opens or returns to the foreground, with background checks every 15 minutes while running. The foreground check remains independent of the background timer, and a verified new version immediately opens the update dialog. Rapid repeated events share a short cooldown. See [v1.9.5 notes](docs/releases/v1.9.5.md).

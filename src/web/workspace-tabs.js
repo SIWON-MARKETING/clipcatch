@@ -57,7 +57,7 @@
  const share=el('button','공유 링크 복사');share.type='button';share.id='shareStable';share.className='update-btn';tools.append(share);
  const shareText=el('input');shareText.readOnly=true;shareText.hidden=true;shareText.className='share-url';shareText.setAttribute('aria-label','팀 공유용 최신 다운로드 링크');
  const shareFeedback=el('p');shareFeedback.className='share-feedback';shareFeedback.hidden=true;shareFeedback.setAttribute('role','status');
- const stableURL='https://github.com/shindongyoon-siwon/clipcatch/releases/latest/download/ClipCatch.exe';
+ const stableURL='https://github.com/SIWON-MARKETING/clipcatch/releases/latest/download/ClipCatch.exe';
  share.onclick=async()=>{shareText.value=stableURL;shareFeedback.hidden=false;try{await navigator.clipboard.writeText(stableURL);shareText.hidden=true;shareFeedback.textContent='공유 링크를 복사했습니다.';}catch(_){shareText.hidden=false;shareText.focus();shareText.select();shareFeedback.textContent='아래 링크를 Ctrl+C로 복사해 주세요.';}};
  program.append(tools,shareText,shareFeedback,$('updateFeedback'),$('appUpdate'));body.append(program,$('redditAuthDetails'),$('helpPanel'));
  const footer=document.querySelector('.footer'),legal=footer?.querySelector('small');if(legal){legal.className='settings-note';body.append(legal);}footer?.remove();

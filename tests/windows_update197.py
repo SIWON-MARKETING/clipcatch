@@ -7,7 +7,7 @@ if os.name!='nt':raise SystemExit('Windows required')
 exe,out=map(lambda p:Path(p).resolve(),sys.argv[1:3]);out.mkdir(parents=True,exist_ok=True)
 version=(Path(__file__).resolve().parents[1]/'VERSION').read_text().strip()
 root=Path(tempfile.mkdtemp(prefix='clipcatch-update197-'));base='http://127.0.0.1:8765'
-old=root/'old196.exe';url='https://github.com/shindongyoon-siwon/clipcatch/releases/download/v1.9.6/ClipCatch.exe'
+old=root/'old196.exe';url='https://github.com/SIWON-MARKETING/clipcatch/releases/download/v1.9.6/ClipCatch.exe'
 expected='c995502a2942c33ede7f836fe1bb7178e72a4598ca127d29e5c80698fb7bbd58'
 for attempt in range(3):
  try:
