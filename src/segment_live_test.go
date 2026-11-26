@@ -45,11 +45,14 @@ func TestPreviewAssemblyLiveTrim(t *testing.T) {
     select{
     case <-done:
     case <-ctx.Done():
-        a.cancelDownloadByID(response.JobID)
+        a.mu.Lock()
+        if active:=a.activeRuns[response.JobID];active!=nil&&active.cancel!=nil{active.cancel()}
+        a.mu.Unlock()
         t.Fatal("live Assembly section fetch did not complete in time")
     }
     j:=a.getJob(response.JobID)
-    if j==nil||j.Status!="done"{t.Fatalf("live section failed: status=%s code=%s title=%s detail=%s",j.Status,j.ErrorCode,j.ErrorTitle,j.Detail)}
+    if j==nil{t.Fatal("segment job missing after download")}
+    if j.Status!="done"{t.Fatalf("live section failed: status=%s code=%s title=%s detail=%s",j.Status,j.ErrorCode,j.ErrorTitle,j.Detail)}
     if !nonempty(j.File){t.Fatal("successful job without a file")}
     duration,_,e:=probeSegmentVideo(context.Background(),ff,j.File)
     if e!=nil||duration>13||duration<4{t.Fatalf("invalid selected output duration: %.2f %v",duration,e)}
