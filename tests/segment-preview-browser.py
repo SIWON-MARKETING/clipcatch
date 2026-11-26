@@ -68,7 +68,13 @@ with sync_playwright() as p:
     expect(page.locator('#ccwPreviewText')).to_contain_text('아래에서 나온')
     assert page.locator('#ccwInlineNumber').count()==0,'Yellow number must not be inserted'
     expect(page.locator('#ccwChooseLocal')).to_be_hidden()
-    assert page.locator('#ccwFrame').evaluate('(el)=>el.getBoundingClientRect().width')>=240
+    # Stylesheets are injected by the app asynchronously; wait for the larger
+    # inline layout instead of sampling the original 178px canvas too early.
+    page.wait_for_function("() => document.querySelector('#ccwFrame') && parseFloat(getComputedStyle(document.querySelector('#ccwFrame')).width)>=210",timeout=10000)
+    dimensions=page.locator('#ccwFrame').evaluate('(el)=>({width:el.getBoundingClientRect().width,css:getComputedStyle(el).width,parent:el.parentElement.getBoundingClientRect().width})')
+    print('In-page preview dimensions:',dimensions,flush=True)
+    page.screenshot(path=str(OUT/'preview-v2-six-fields-basic-1366.png'),full_page=False)
+    assert dimensions['width']>=210,dimensions
     assert page.locator('#ccwFrame .ccw-preview-gradient').evaluate('(el)=>getComputedStyle(el).backgroundImage')=='none'
     assert page.locator('#ccwVideo').evaluate('(el)=>getComputedStyle(el).objectFit')=='contain'
     # The Bridge body template dynamically pushes two lines higher than one line.
