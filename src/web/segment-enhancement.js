@@ -64,6 +64,8 @@
   const captionNote=$('ccwCopyStyle');if(captionNote)captionNote.textContent='돋보기 A 내지 기본형 자동 배치';
   const statusHelp=$('ccwEdit').querySelector('.ccw-edit-notice');
   if(statusHelp)statusHelp.textContent='시간을 선택하고 다운로드해줘. 영상 캐러셀은 ONE Mobile POP 글꼴이 PC에 설치돼 있어야 해.';
+  const renderStatus=$('ccwDetailDialog')?.querySelector('.ccw-detail-footer .ccw-small');
+  if(renderStatus)renderStatus.textContent='1080 × 1350 · H.264/AAC MP4 출력 연결됨 · 제작은 [영상 캐러셀 MP4 만들기]에서 실행';
   const small=$('ccwTrimActions')?.querySelector('small');
   if(small)small.textContent='저장 진행 상황은 아래 작업 목록에서 확인해.';
   const previewInfo=$('ccwPreviewEmpty');
