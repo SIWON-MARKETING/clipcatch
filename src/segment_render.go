@@ -14,7 +14,7 @@ import (
     "math"
     "net/http"
     "os"
-        "path/filepath"
+    "path/filepath"
     "regexp"
     "runtime"
     "strconv"
@@ -53,7 +53,7 @@ func (s *segmentSpec) validate() error {
             if unicode.IsControl(r) { return errors.New("본문에 지원하지 않는 제어 문자가 있어") }
         }
         if !s.Advanced {
-            s.Size,s.Color,s.X,s.Y,s.Fit = 76,"#ffffff",50,72,"cover"
+            s.Size,s.Color,s.X,s.Y,s.Fit = 76,"#ffffff",50,72,"contain"
         } else {
             if s.Size < 40 || s.Size > 110 || !regexp.MustCompile("^#[0-9a-fA-F]{6}$").MatchString(s.Color) ||
                 math.IsNaN(s.X) || math.IsNaN(s.Y) || s.X < 10 || s.X > 90 || s.Y < 15 || s.Y > 90 ||
@@ -77,9 +77,9 @@ func segmentArgs(j *Job, args []string) []string {
     out:=append([]string{},args[:len(args)-1]...)
     for i:=0;i+1<len(out);i++ { if out[i]=="-o" {out[i+1]=output;break} }
     out=append(out,"--download-sections","*"+start+"-"+end,
-        // FFmpeg can seek within the source. Cut frames at the selected time;
-        // this may re-encode only the selected section, not the entire video.
-        "--force-keyframes-at-cuts","--remux-video","mp4")
+        // FFmpeg seeks accurately. A later compatibility pass creates
+        // a verified H.264/AAC-LC MP4 without changing the original file.
+        "--force-keyframes-at-cuts")
     return append(out,j.URL)
 }
 
@@ -91,7 +91,7 @@ func (a *App) segmentRoutes(mux *http.ServeMux) {
             "preset":"dotbogi-a-body","width":1080,"height":1350,
             "font":"ONE Mobile POP","font_size":76,"min_font_size":40,
             "line_height":1.2,"text_width":1008,"padding_top":18,"padding_bottom":58,
-            "number_size":32,"number_gap":8,"transition":90,
+            "number_size":0,"number_gap":0,"transition":0,
             "installed_font":ok,
         })
     })
@@ -200,22 +200,20 @@ func segmentBodyLayout(s *segmentSpec) (fontSize,numberTop,mainTop,photoEnd int,
         return 0,0,0,0,errors.New("본문이 너무 길어. 줄을 나누거나 문구를 줄여 줘")
     }}
     mainH:=int(math.Ceil(float64(len(lines))*float64(fontSize)*1.2))
-    numberH:=int(math.Ceil(32*1.2))
-    total:=18+numberH+8+mainH+58
+    total:=18+mainH+58
     if total > 1350-90 {return 0,0,0,0,errors.New("본문이 카드에 들어가지 않아. 줄 수를 줄여 줘")}
     photoEnd=1350-total
-    numberTop=photoEnd+18
-    mainTop=numberTop+numberH+8
+    numberTop=0 // numbering removed in Preview test.10
+    mainTop=photoEnd+18
     return
 }
 
 func makeSectionShade(path string,photoEnd int) error {
     if photoEnd<=90||photoEnd>=1350{return errors.New("invalid photo region")}
+    // Fixed solid caption block with no translucent transition / gradient.
     img:=image.NewNRGBA(image.Rect(0,0,1080,1350))
-    for y:=photoEnd-90;y<1350;y++{
-        a:=uint8(255)
-        if y<photoEnd {a=uint8(math.Round(255*float64(y-(photoEnd-90))/90))}
-        for x:=0;x<1080;x++{img.SetNRGBA(x,y,color.NRGBA{R:0x0e,G:0x0e,B:0x10,A:a})}
+    for y:=photoEnd;y<1350;y++{
+        for x:=0;x<1080;x++{img.SetNRGBA(x,y,color.NRGBA{R:0x0e,G:0x0e,B:0x10,A:255})}
     }
     f,e:=os.Create(path);if e!=nil{return e}
     defer f.Close()
@@ -250,45 +248,56 @@ func probeSegmentVideo(parent context.Context, ffmpeg, path string)(duration flo
 }
 func isFinite(n float64)bool{return !math.IsNaN(n)&&!math.IsInf(n,0)}
 
+// Always publish a compatibility-encoded section. yt-dlp's extracted audio
+// stream can be a codec variant that Windows/Premiere refuses to play.
 func (a *App) finishSegment(id string,ctx context.Context){
     j:=a.getJob(id)
     if j==nil||j.Segment==nil{return}
     s:=j.Segment
     source:=j.File
-    if source=="" || !nonempty(source) || !validPostSource(a.saveDir,source) {
+    if !a.isSegmentWorkspace(j) || source=="" || !nonempty(source) || !validPostSource(j.DownloadDir,source) {
         a.segmentFailure(id,"CC-421","다운로드된 구간 파일을 찾지 못했어");return
     }
     a.mu.Lock();ff:=a.ffmpeg;a.mu.Unlock()
     duration,audio,e:=probeSegmentVideo(ctx,ff,source)
-    if e!=nil {a.segmentFailure(id,"CC-422","구간 영상 형식을 확인하지 못했어. 원본은 그대로 보관했어.");return}
+    if e!=nil {a.segmentFailure(id,"CC-422","구간 영상 형식을 확인하지 못했어.");return}
     if duration>float64(s.End-s.Start)+4 {
         a.segmentFailure(id,"CC-423","선택 구간보다 긴 영상이 저장됐어. 전체 영상으로 잘못 저장되지 않도록 중단했어.");return
     }
-    if s.Kind=="clip"{
-        a.mutateJob(id,func(st *Job){
-            st.Status="done";st.Percent=100;st.OriginalFile=source;st.File=source;st.Detail="선택 구간 다운로드 완료"
-        });return
+    if s.Kind=="clip"&&!audio {
+        a.segmentFailure(id,"CC-427","구간 영상에 오디오 트랙이 없어. 원본 영상의 소리를 확인해 줘.");return
     }
-    if s.Kind!="carousel"{a.segmentFailure(id,"CC-424","캐러셀 형식 오류");return}
-    a.mutateJob(id,func(st *Job){st.Stage="rendering";st.Detail="1080×1350 영상 캐러셀 제작 중"})
-    rendered,e:=a.renderSegmentCarousel(ctx,id,ff,source,s,duration,audio)
+    var rendered string
+    if s.Kind=="clip" {
+        a.mutateJob(id,func(st *Job){st.Stage="rendering";st.Detail="호환되는 H.264/AAC 구간 영상 제작 중"})
+        rendered,e=a.renderSegmentClip(ctx,id,ff,source,s,duration,audio)
+    } else if s.Kind=="carousel" {
+        a.mutateJob(id,func(st *Job){st.Stage="rendering";st.Detail="1080×1350 영상 캐러셀 제작 중"})
+        rendered,e=a.renderSegmentCarousel(ctx,id,ff,source,s,duration,audio)
+    } else {
+        a.segmentFailure(id,"CC-424","다운로드 형식 오류");return
+    }
     if ctx.Err()!=nil||a.isJobCancelled(id){return}
     if e!=nil{
-        // Never mark a partial render as done. The source clip survives.
-        a.segmentFailure(id,"CC-425","캐러셀 MP4 제작에 실패했어. 구간 원본은 그대로 보관했어.")
+        a.segmentFailure(id,"CC-425","MP4 제작에 실패했어. 작업 파일은 임시 폴더에 보관했어.")
         return
     }
+    // The user receives only the completed output, never the temporary source.
     a.mutateJob(id,func(st *Job){
-        st.OriginalFile=source;st.File=rendered;st.Status="done";st.Percent=100;st.Stage="";
-        st.Detail="1080×1350 영상 캐러셀 MP4 완료 · 구간 원본 보존"
+        st.OriginalFile="";st.File=rendered;st.Status="done";st.Percent=100;st.Stage="";
+        if s.Kind=="clip"{st.Detail="선택 구간 MP4 완료 · H.264/AAC"}
+        if s.Kind=="carousel"{st.Detail="1080×1350 캐러셀 MP4 완료"}
     })
+    if err:=a.cleanupSegmentWorkspace(j);err!=nil{
+        a.mutateJob(id,func(st *Job){st.Detail+=" · 임시 파일 정리는 다음 실행에서 확인 필요"})
+    }
 }
 
 func (a *App) segmentFailure(id,code,title string){
     a.mutateJob(id,func(st *Job){
         if st.Status=="cancelled"{return}
         st.Status="error";st.Stage="";st.ErrorCode=code;st.ErrorTitle=title;
-        st.ErrorAdvice="원본 파일은 삭제하지 않았어. 글꼴 설치와 영상 도구 상태를 확인해 줘."
+        st.ErrorAdvice="영상 도구와 원본 링크 상태를 확인해 줘. 실패한 중간 파일은 앱 내부 임시 폴더에 있어."
         st.Detail=title
     })
 }
@@ -297,66 +306,100 @@ func copyFileSimple(src,dst string)error {
     b,e:=os.ReadFile(src);if e!=nil{return e}
     return os.WriteFile(dst,b,0600)
 }
+// Validate that the exported stream has real AAC-LC metadata, not an
+// unsupported source-specific mp4a codec that was simply remuxed into MP4.
+func segmentAudioCodec(parent context.Context,ff,path string)(string,error){
+    probe:=filepath.Join(filepath.Dir(ff),"ffprobe")
+    if runtime.GOOS=="windows"{probe+=".exe"}
+    ctx,cancel:=context.WithTimeout(parent,20*time.Second);defer cancel()
+    data,err:=hiddenCommandContext(ctx,probe,"-v","error","-select_streams","a:0",
+        "-show_entries","stream=codec_name","-of","default=noprint_wrappers=1:nokey=1",path).Output()
+    if err!=nil{return "",err}
+    return strings.TrimSpace(string(data)),nil
+}
+
+func verifySegmentMP4(parent context.Context,ff,path string,wantDuration float64,requireAudio bool) error {
+    duration,hasAudio,err:=probeSegmentVideo(parent,ff,path)
+    if err!=nil || math.Abs(duration-wantDuration)>2.5{return errors.New("rendered MP4 duration/video check failed")}
+    if requireAudio && !hasAudio{return errors.New("rendered MP4 audio track missing")}
+    if hasAudio{
+        codec,err:=segmentAudioCodec(parent,ff,path)
+        if err!=nil||codec!="aac"{return errors.New("rendered MP4 must contain AAC audio")}
+    }
+    return nil
+}
+
+func (a *App) renderSegmentClip(parent context.Context,id,ff,source string,s *segmentSpec,duration float64,hasAudio bool)(string,error) {
+    work,err:=os.MkdirTemp(a.dataDir,"preview-trim-")
+    if err!=nil{return "",err}
+    defer os.RemoveAll(work)
+    temp:=filepath.Join(work,"section.mp4")
+    args:=[]string{"-hide_banner","-loglevel","error","-y","-i",source,
+        "-map","0:v:0","-map","0:a:0?","-t",fmt.Sprintf("%.3f",duration),
+        "-c:v","libx264","-preset","veryfast","-crf","18","-pix_fmt","yuv420p","-r","30",
+        "-c:a","aac","-profile:a","aac_low","-b:a","128k","-ar","48000","-ac","2",
+        "-movflags","+faststart","-shortest",temp}
+    ctx,cancel:=context.WithTimeout(parent,2*time.Hour);defer cancel()
+    cmd:=hiddenCommandContext(ctx,ff,args...)
+    a.setJobProcess(id,cmd)
+    output,err:=cmd.CombinedOutput()
+    a.clearJobProcess(id,cmd)
+    if err!=nil{return "",fmt.Errorf("MP4 audio/video conversion failed (%d diagnostic bytes): %w",len(output),err)}
+    if err=verifySegmentMP4(parent,ff,temp,duration,hasAudio);err!=nil{return "",err}
+    if err=os.MkdirAll(a.saveDir,0755);err!=nil{return "",err}
+    target:=filepath.Join(a.saveDir,"ClipCatch_"+segmentStamp(s.Start)+"_"+segmentStamp(s.End)+"_"+id+"_section.mp4")
+    if err=os.Rename(temp,target);err!=nil{return "",err}
+    return target,nil
+}
+
 func (a *App) renderSegmentCarousel(parent context.Context,id,ff,source string,s *segmentSpec,duration float64,hasAudio bool)(string,error){
     if s==nil{return "",errors.New("no segment options")}
     font,ok:=installedPopFont();if !ok{return "",errors.New("POP font not installed")}
-    size,numberY,textY,photoY,e:=segmentBodyLayout(s)
-    if e!=nil{return "",e}
-    work,e:=os.MkdirTemp(a.dataDir,"preview-segment-")
-    if e!=nil{return "",e}
+    size,_,textY,photoY,err:=segmentBodyLayout(s)
+    if err!=nil{return "",err}
+    work,err:=os.MkdirTemp(a.dataDir,"preview-segment-")
+    if err!=nil{return "",err}
     defer os.RemoveAll(work)
-    if e=makeSectionShade(filepath.Join(work,"shade.png"),photoY);e!=nil{return "",e}
-    if e=copyFileSimple(font,filepath.Join(work,"localfont"+filepath.Ext(font)));e!=nil{return "",e}
+    if err=copyFileSimple(font,filepath.Join(work,"localfont"+filepath.Ext(font)));err!=nil{return "",err}
     fontName:="localfont"+filepath.Ext(font)
-    if e=os.WriteFile(filepath.Join(work,"caption.txt"),[]byte(s.Caption),0600);e!=nil{return "",e}
-    geometry:="scale=1080:1350:force_original_aspect_ratio=increase,crop=1080:1350"
-    if s.Advanced && s.Fit=="contain" {
-        geometry="scale=1080:1350:force_original_aspect_ratio=decrease,pad=1080:1350:(ow-iw)/2:(oh-ih)/2:color=0x0e0e10"
-    }
-    base:="[0:v]"+geometry+",setsar=1,fps=30,format=rgba[base];"+
-        "[base][1:v]overlay=0:0:shortest=1,format=yuv420p"
+    if err=os.WriteFile(filepath.Join(work,"caption.txt"),[]byte(s.Caption),0600);err!=nil{return "",err}
+    // Always show the complete frame, centered with letterboxes if needed.
+    // The lower caption panel is solid black: no crop and no gradient.
+    photoH:=strconv.Itoa(photoY)
+    geometry:="scale=1080:"+photoH+":force_original_aspect_ratio=decrease,"+
+        "pad=1080:"+photoH+":(ow-iw)/2:(oh-ih)/2:color=0x0e0e10,"+
+        "pad=1080:1350:0:0:color=0x0e0e10"
+    base:="[0:v]"+geometry+",setsar=1,fps=30,format=yuv420p"
     textX:="(w-text_w)/2"
-    if s.Advanced {textX=fmt.Sprintf("(w*%.5f)-(text_w/2)",s.X/100)}
-    if s.Advanced {textY=int(math.Round(s.Y/100*1350))}
-    // For the fixed Bridge body, y is top-aligned to the line box. No free
-    // positioning in basic mode. Advanced y is an explicitly chosen top.
+    if s.Advanced{textX=fmt.Sprintf("(w*%.5f)-(text_w/2)",s.X/100)}
+    if s.Advanced{textY=int(math.Round(s.Y/100*1350))}
     lineSpacing:=int(math.Round(float64(size)*0.2))
-    if lineSpacing<0{lineSpacing=0}
     colorHex:=strings.TrimPrefix(s.Color,"#")
     if !regexp.MustCompile("^[0-9a-fA-F]{6}$").MatchString(colorHex) {return "",errors.New("bad caption color")}
     base+=",drawtext=fontfile="+fontName+":textfile=caption.txt:expansion=none"+
-      ":fontcolor=0x"+colorHex+":fontsize="+strconv.Itoa(size)+
-      ":line_spacing="+strconv.Itoa(lineSpacing)+
-      ":x="+textX+":y="+strconv.Itoa(textY)
-    if !s.Advanced{
-        base+=",drawtext=fontfile="+fontName+":text='01':expansion=none"+
-            ":fontcolor=0xffe14d:fontsize=32:x=(w-text_w)/2:y="+strconv.Itoa(numberY)
-    }
-    base+="[outv]"
-    tmp:=filepath.Join(work,"carousel.mp4")
-    args:=[]string{"-hide_banner","-loglevel","error","-y","-i",source,
-        "-loop","1","-i","shade.png"}
+        ":fontcolor=0x"+colorHex+":fontsize="+strconv.Itoa(size)+
+        ":line_spacing="+strconv.Itoa(lineSpacing)+":x="+textX+":y="+strconv.Itoa(textY)+"[outv]"
+    temp:=filepath.Join(work,"carousel.mp4")
+    args:=[]string{"-hide_banner","-loglevel","error","-y","-i",source}
     mapAudio:="0:a:0?"
     if !hasAudio{
         args=append(args,"-f","lavfi","-i","anullsrc=channel_layout=stereo:sample_rate=48000")
-        mapAudio="2:a:0"
+        mapAudio="1:a:0"
     }
     args=append(args,"-filter_complex",base,"-map","[outv]","-map",mapAudio,
         "-t",fmt.Sprintf("%.3f",duration),"-c:v","libx264","-preset","veryfast",
         "-crf","21","-pix_fmt","yuv420p","-r","30",
-        "-c:a","aac","-b:a","128k","-ar","48000",
-        "-movflags","+faststart","-shortest",tmp)
+        "-c:a","aac","-profile:a","aac_low","-b:a","128k","-ar","48000","-ac","2",
+        "-movflags","+faststart","-shortest",temp)
     ctx,cancel:=context.WithTimeout(parent,2*time.Hour);defer cancel()
     cmd:=hiddenCommandContext(ctx,ff,args...);cmd.Dir=work
     a.setJobProcess(id,cmd)
-    output,e:=cmd.CombinedOutput()
+    output,err:=cmd.CombinedOutput()
     a.clearJobProcess(id,cmd)
-    if e!=nil{return "",fmt.Errorf("render failed (%d diagnostic bytes): %w",len(output),e)}
-    outputDuration,_,e:=probeSegmentVideo(parent,ff,tmp)
-    if e!=nil || math.Abs(outputDuration-duration)>2.5 {return "",errors.New("rendered MP4 validation failed")}
-    out:=filepath.Join(a.saveDir,"ClipCatch_"+segmentStamp(s.Start)+"_"+segmentStamp(s.End)+"_"+id+"_1080x1350.mp4")
-    // Destination is unique to this job; no existing files are overwritten.
-    if e=os.MkdirAll(a.saveDir,0755);e!=nil{return "",e}
-    if e=os.Rename(tmp,out);e!=nil{return "",e}
-    return out,nil
+    if err!=nil{return "",fmt.Errorf("render failed (%d diagnostic bytes): %w",len(output),err)}
+    if err=verifySegmentMP4(parent,ff,temp,duration,true);err!=nil{return "",err}
+    target:=filepath.Join(a.saveDir,"ClipCatch_"+segmentStamp(s.Start)+"_"+segmentStamp(s.End)+"_"+id+"_1080x1350.mp4")
+    if err=os.MkdirAll(a.saveDir,0755);err!=nil{return "",err}
+    if err=os.Rename(temp,target);err!=nil{return "",err}
+    return target,nil
 }
