@@ -187,6 +187,10 @@ func (a *App) checkAppUpdate() {
 }
 
 func (a *App) checkAppUpdateHandler(w http.ResponseWriter, r *http.Request) {
+	if isPreviewBuild() {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "skipped": true, "message": "독립 실행형 Preview는 자동 업데이트를 사용하지 않아"})
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, 2048)
 	var input struct {
 		Automatic bool `json:"automatic"`
@@ -219,6 +223,10 @@ func (a *App) checkAppUpdateHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) installAppUpdateHandler(w http.ResponseWriter, r *http.Request) {
+	if isPreviewBuild() {
+		writeError(w, http.StatusConflict, "Preview는 독립 실행형이야. 새 EXE를 따로 받아 실행해줘.")
+		return
+	}
 	if runtime.GOOS != "windows" {
 		writeError(w, 400, "Windows에서만 설치할 수 있습니다.")
 		return
@@ -544,6 +552,9 @@ func logUpdate(msg string) {
 }
 
 func installedExePath() string {
+	if isPreviewBuild() {
+		return filepath.Join(os.Getenv("LOCALAPPDATA"), "Programs", "ClipCatch-Preview", "ClipCatch-Preview.exe")
+	}
 	if isTrialBuild() {
 		return filepath.Join(os.Getenv("LOCALAPPDATA"), "Programs", "ClipCatch-Test2", "ClipCatch-Test2.exe")
 	}
@@ -552,6 +563,7 @@ func installedExePath() string {
 
 // One-time migration to a stable per-user location: subsequent updates do not need ZIP extraction.
 func installAndRelaunch() bool {
+	if isPreviewBuild() { return false }
 	if runtime.GOOS != "windows" || os.Getenv("LOCALAPPDATA") == "" || os.Getenv("CLIPCATCH_PORTABLE") == "1" {
 		return false
 	}
@@ -619,7 +631,7 @@ func installAndRelaunch() bool {
 func makeClipCatchShortcuts(target string) {
 	// PowerShell is invoked internally; the user never needs to run terminal commands.
 	name := "ClipCatch"
-	if isTrialBuild() {
+	if isPreviewBuild() { name = "ClipCatch Preview" } else if isTrialBuild() {
 		name = "ClipCatch TEST2"
 	}
 	paths := []string{}
