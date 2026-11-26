@@ -27,7 +27,7 @@ func validateBuildIdentity(b buildIdentity) error {
 		_, e := parseSemver(b.Version)
 		return e
 	}
-	if (b.Channel == "test" && b.App == "clipcatch-test2") || (b.Channel == "preview" && b.App == "clipcatch-preview") {
+	if (b.Channel == "test" && b.App == "clipcatch-test2") || (b.Channel == "preview" && b.App == "clipcatch-preview-v2") {
 		_, e := parseTrialVersion(b.Version)
 		return e
 	}
