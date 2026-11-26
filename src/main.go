@@ -205,7 +205,11 @@ func (a *App) routes() {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "no-store")
-		_, _ = w.Write([]byte(strings.ReplaceAll(strings.Replace(string(b), "</body>", "<script src=\"/premiere.js\"></script><script src=\"/quality.js\"></script><script src=\"/workspace-tabs.js\"></script><script src=\"/startup-update.js\"></script><script src=\"/lifecycle.js\"></script></body>", 1), "__APP_VERSION__", appVersion)))
+		html := strings.ReplaceAll(strings.Replace(string(b), "</body>", "<script src=\"/premiere.js\"></script><script src=\"/quality.js\"></script><script src=\"/workspace-tabs.js\"></script><script src=\"/startup-update.js\"></script><script src=\"/lifecycle.js\"></script></body>", 1), "__APP_VERSION__", appVersion)
+		if isTrialBuild() {
+			html = strings.Replace(html, "</body>", "<script src=\"/inline-download-ui.js\"></script></body>", 1)
+		}
+		_, _ = w.Write([]byte(html))
 	})
 	// Serve the app's distinctive tab icon from the executable (no extra files needed).
 	for _, asset := range []struct{ path, mediaType string }{
@@ -299,6 +303,28 @@ func (a *App) routes() {
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		_, _ = w.Write(b)
 	})
+	// UI-only trim editor assets: enabled by the TEST2 page, not a new tab.
+	for _, asset := range []struct { file, contentType string }{
+		{"inline-download-ui.js", "text/javascript; charset=utf-8"},
+		{"inline-download-ui.css", "text/css; charset=utf-8"},
+	} {
+		asset := asset
+		mux.HandleFunc("GET /"+asset.file, func(w http.ResponseWriter, r *http.Request) {
+			if !isTrialBuild() {
+				http.NotFound(w, r)
+				return
+			}
+			b, err := pages.ReadFile("web/"+asset.file)
+			if err != nil {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", asset.contentType)
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("Cache-Control", "no-store")
+			_, _ = w.Write(b)
+		})
+	}
 	a.mux = mux
 }
 
