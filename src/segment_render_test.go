@@ -100,7 +100,7 @@ func TestSegmentFFmpegLocalCarouselEndToEnd(t *testing.T) {
     out,e:=cmd.CombinedOutput();if e!=nil{t.Fatalf("fixture: %v: %s",e,out)}
     a:=newApp(filepath.Join(root,"data"),filepath.Join(root,"output"))
     if e:=os.MkdirAll(a.dataDir,0700);e!=nil{t.Fatal(e)}
-    spec:=&segmentSpec{Kind:"carousel",Caption:"TEST\nPOP BODY"}
+    spec:=&segmentSpec{Kind:"carousel",Start:0,End:2,Caption:"TEST\nPOP BODY"}
     if e:=spec.validate();e!=nil{t.Fatal(e)}
     ctx,cancel:=context.WithTimeout(context.Background(),time.Minute);defer cancel()
     file,e:=a.renderSegmentCarousel(ctx,"test-123",ff,input,spec,1.2,true)
