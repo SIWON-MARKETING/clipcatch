@@ -21,10 +21,10 @@ func TestPortablePreviewHasOwnAddressAndFiles(t *testing.T) {
     if !isPreviewBuild() || !isTrialBuild() {
         t.Fatal("preview must be a trial but separate from TEST2")
     }
-    if runtimeAppID() != "clipcatch-preview" || runtimePort() != "18767" || runtimeDataName() != "ClipCatch-Preview" {
+    if runtimeAppID() != "clipcatch-preview-v2" || runtimePort() != "18768" || runtimeDataName() != "ClipCatch-Preview-V2" {
         t.Fatalf("preview identity wrong: %s %s %s", runtimeAppID(), runtimePort(), runtimeDataName())
     }
-    if runtimeSaveDir(root) != filepath.Join(root, "Downloads", "ClipCatch-Preview") {
+    if runtimeSaveDir(root) != filepath.Join(root, "Downloads", "ClipCatch-Preview-V2") {
         t.Fatal("preview reused a stable or TEST2 save path")
     }
     if strings.Contains(strings.ToLower(installedExePath()), "test2") || !strings.Contains(strings.ToLower(installedExePath()), "preview") {
@@ -39,7 +39,7 @@ func TestPortablePreviewHasOwnAddressAndFiles(t *testing.T) {
     a := newApp(filepath.Join(root, "preview"), filepath.Join(root, "save"))
     h := httptest.NewRecorder()
     a.mux.ServeHTTP(h, httptest.NewRequest("GET", "/api/health", nil))
-    if h.Code != 200 || !strings.Contains(h.Body.String(), "clipcatch-preview") {
+    if h.Code != 200 || !strings.Contains(h.Body.String(), "clipcatch-preview-v2") {
         t.Fatalf("preview health missing: %d %s", h.Code, h.Body.String())
     }
     if check, _ := a.beginAppUpdateCheck(false, false); check != nil {
@@ -51,7 +51,7 @@ func TestPortablePreviewHasOwnAddressAndFiles(t *testing.T) {
 
     // Switch back in the same test; production and older TEST2 remain unchanged.
     appChannel = "stable"
-    if runtimePort() != "8765" || runtimeDataName() == "ClipCatch-Preview" {
+    if runtimePort() != "8765" || runtimeDataName() == "ClipCatch-Preview-V2" {
         t.Fatal("production startup identity changed")
     }
     appChannel = "test"
