@@ -7,7 +7,7 @@ on:
       - 'src/**'
       - 'tests/**'
       - 'tools/windows_resources.py'
-      - '.github/workflows/portable-preview.yml'
+      - '.github/workflows/segment-preview.yml'
   workflow_dispatch:
 
 permissions:
@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   preview-windows:
-    if: github.head_ref == 'test/segment-render-2.0.1-p2'
+    if: github.head_ref == 'test/clipcatch-preview-2.0.1-test.10'
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -36,7 +36,7 @@ jobs:
         shell: pwsh
         run: |
           Push-Location src
-          go test -count=1 -timeout=5m -run '^Test(PortablePreviewHasOwnAddressAndFiles|TrialIsolatedPathsAndUpdaterBlocked|TrialPairRequiresTestExtension|AssemblyOfficialMetadataResolution|NaverOfficialPlaybackMetadataAndSeparateAudio|HLSUsesFFmpegWhileDirectMP4AndDASHKeepExistingDownloader|PreviewSegmentValidationAndArgs|BridgeBodyDynamicPosition|PreviewSegmentAPIIsIsolatedAndRedditUsesExtensionOnly)$' .
+          go test -count=1 -timeout=5m -run '^Test(PortablePreviewHasOwnAddressAndFiles|TrialIsolatedPathsAndUpdaterBlocked|TrialPairRequiresTestExtension|AssemblyOfficialMetadataResolution|NaverOfficialPlaybackMetadataAndSeparateAudio|HLSUsesFFmpegWhileDirectMP4AndDASHKeepExistingDownloader|PreviewSegmentValidationAndArgs|BridgeBodyDynamicPosition|PreviewSegmentAPIIsIsolatedAndRedditUsesExtensionOnly|SegmentWorkspaceStoresOnlyTemporarySources)
           if ($LASTEXITCODE -ne 0) { throw 'Runtime or video resolver tests failed' }
           go vet ./...
           if ($LASTEXITCODE -ne 0) { throw 'Go static checks failed' }
@@ -52,13 +52,13 @@ jobs:
         run: |
           python -m pip install Pillow==11.3.0
           if ($LASTEXITCODE -ne 0) { throw 'Pillow unavailable' }
-          python tools/windows_resources.py --version 2.0.1-test.9 --preview
+          python tools/windows_resources.py --version 2.0.1-test.10 --preview
           if ($LASTEXITCODE -ne 0) { throw 'Preview Windows resource generation failed' }
           New-Item -ItemType Directory -Force dist-preview | Out-Null
           $env:CGO_ENABLED = '0'
           Push-Location src
           try {
-            go build -trimpath '-ldflags=-s -w -H windowsgui -X main.appVersion=2.0.1-test.9 -X main.appChannel=preview' -o ../dist-preview/ClipCatch-Preview-V2.exe .
+            go build -trimpath '-ldflags=-s -w -H windowsgui -X main.appVersion=2.0.1-test.10 -X main.appChannel=preview' -o ../dist-preview/ClipCatch-Preview-V2.exe .
             if ($LASTEXITCODE -ne 0) { throw 'Portable Preview EXE build failed' }
           } finally { Pop-Location }
 
@@ -69,7 +69,7 @@ jobs:
           $p = Start-Process -FilePath $exe -ArgumentList @('--build-info', (Join-Path (Get-Location) 'dist-preview\identity.json')) -PassThru -Wait
           if ($p.ExitCode -ne 0) { throw 'EXE identity probe failed' }
           $id = Get-Content dist-preview/identity.json -Raw | ConvertFrom-Json
-          if ($id.app -ne 'clipcatch-preview-v2' -or $id.channel -ne 'preview' -or $id.version -ne '2.0.1-test.9') {
+          if ($id.app -ne 'clipcatch-preview-v2' -or $id.channel -ne 'preview' -or $id.version -ne '2.0.1-test.10') {
             throw 'Wrong portable identity; refuse delivery'
           }
           $meta = (Get-Item $exe).VersionInfo
@@ -86,7 +86,7 @@ jobs:
               if ($proc.HasExited) { throw 'Preview closed before serving health endpoint' }
               try {
                 $health = Invoke-RestMethod -Uri 'http://127.0.0.1:18768/api/health' -TimeoutSec 2
-                if ($health.app -eq 'clipcatch-preview-v2' -and $health.channel -eq 'preview' -and $health.version -eq '2.0.1-test.9') {
+                if ($health.app -eq 'clipcatch-preview-v2' -and $health.channel -eq 'preview' -and $health.version -eq '2.0.1-test.10') {
                   $found = $true
                   break
                 }
@@ -104,13 +104,13 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ClipCatch-Preview-2.0.1-test.9
+          name: ClipCatch-Preview-2.0.1-test.10
           path: dist-preview/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
 
   render-e2e-ubuntu:
-    if: github.head_ref == 'test/segment-render-2.0.1-p2'
+    if: github.head_ref == 'test/clipcatch-preview-2.0.1-test.10'
     runs-on: ubuntu-latest
     timeout-minutes: 16
     steps:
@@ -125,7 +125,129 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg fonts-dejavu-core
-      - name: Generate a synthetic local clip and verify 1080x1350 H264/AAC export
+      - name: Generate synthetic local clips and verify 1080x1350 H264/AAC export
+        shell: bash
+        working-directory: src
+        env:
+          CLIPCATCH_SEGMENT_MEDIA_TEST: '1'
+          CLIPCATCH_PREVIEW_FONT: /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+        run: |
+          ffmpeg -version | head -n 1
+          test -f "$CLIPCATCH_PREVIEW_FONT"
+          go test -run '^Test(SegmentFFmpegLocalCarouselEndToEnd|SegmentFFmpegLocalClipHasPlayableSound)
+      - name: Chromium check: preview size, flat background, no number, API UI
+        shell: bash
+        run: |
+          python -m pip install -q playwright==1.56.0
+          python -m playwright install chromium
+          python tests/segment-preview-browser.py
+      - name: Save browser QA screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClipCatch-Preview-2.0.1-test.10-qa
+          path: qa-output/*.png
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Real public Assembly 8-second segment through ClipCatch job queue
+        continue-on-error: true
+        working-directory: src
+        shell: bash
+        env:
+          CLIPCATCH_SEGMENT_LIVE_TEST: '1'
+        run: |
+          python -m pip install --disable-pip-version-check -q yt-dlp==2026.11.23
+          go test -run '^TestPreviewAssemblyLiveTrim$' -count=1 -v -timeout=3m .
+ .
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime or video resolver tests failed' }
+          go vet ./...
+          if ($LASTEXITCODE -ne 0) { throw 'Go static checks failed' }
+          Pop-Location
+          node --check src/web/inline-download-ui.js
+          node --check src/web/segment-enhancement.js
+          if ($LASTEXITCODE -ne 0) { throw 'Integrated editor syntax failed' }
+          node --test tests/inline-download-ui.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Integrated editor unit tests failed' }
+
+      - name: Build a distinct ClipCatch Preview executable with its own icon metadata
+        shell: pwsh
+        run: |
+          python -m pip install Pillow==11.3.0
+          if ($LASTEXITCODE -ne 0) { throw 'Pillow unavailable' }
+          python tools/windows_resources.py --version 2.0.1-test.10 --preview
+          if ($LASTEXITCODE -ne 0) { throw 'Preview Windows resource generation failed' }
+          New-Item -ItemType Directory -Force dist-preview | Out-Null
+          $env:CGO_ENABLED = '0'
+          Push-Location src
+          try {
+            go build -trimpath '-ldflags=-s -w -H windowsgui -X main.appVersion=2.0.1-test.10 -X main.appChannel=preview' -o ../dist-preview/ClipCatch-Preview-V2.exe .
+            if ($LASTEXITCODE -ne 0) { throw 'Portable Preview EXE build failed' }
+          } finally { Pop-Location }
+
+      - name: Verify EXE identity and run on separate local port without a launcher
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path dist-preview/ClipCatch-Preview-V2.exe).Path
+          $p = Start-Process -FilePath $exe -ArgumentList @('--build-info', (Join-Path (Get-Location) 'dist-preview\identity.json')) -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw 'EXE identity probe failed' }
+          $id = Get-Content dist-preview/identity.json -Raw | ConvertFrom-Json
+          if ($id.app -ne 'clipcatch-preview-v2' -or $id.channel -ne 'preview' -or $id.version -ne '2.0.1-test.10') {
+            throw 'Wrong portable identity; refuse delivery'
+          }
+          $meta = (Get-Item $exe).VersionInfo
+          if ($meta.FileDescription -ne 'ClipCatch Preview V2' -or $meta.OriginalFilename -ne 'ClipCatch-Preview-V2.exe') {
+            throw 'Windows metadata collision with existing ClipCatch'
+          }
+          Remove-Item dist-preview/identity.json
+          # Launch directly, no start-new wrapper, no old process status checks.
+          $proc = Start-Process -FilePath $exe -PassThru
+          try {
+            $found = $false
+            for ($i = 0; $i -lt 48; $i++) {
+              Start-Sleep -Milliseconds 400
+              if ($proc.HasExited) { throw 'Preview closed before serving health endpoint' }
+              try {
+                $health = Invoke-RestMethod -Uri 'http://127.0.0.1:18768/api/health' -TimeoutSec 2
+                if ($health.app -eq 'clipcatch-preview-v2' -and $health.channel -eq 'preview' -and $health.version -eq '2.0.1-test.10') {
+                  $found = $true
+                  break
+                }
+              } catch {}
+            }
+            if (-not $found) { throw 'Preview did not open isolated port 18768' }
+            Write-Host 'PASS: direct launch on 127.0.0.1:18768 without TEST2 process and without launcher'
+          } finally {
+            if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+            $proc.Dispose()
+          }
+          (Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant() + '  ClipCatch-Preview-V2.exe' | Set-Content dist-preview/SHA256SUMS -Encoding ascii
+
+      - name: Upload only standalone Preview EXE and checksum
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClipCatch-Preview-2.0.1-test.10
+          path: dist-preview/
+          if-no-files-found: error
+          retention-days: 30
+
+  render-e2e-ubuntu:
+    if: github.head_ref == 'test/clipcatch-preview-2.0.1-test.10'
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: src/go.mod
+      - name: Install FFmpeg for standalone media integration test
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+      - name: Generate synthetic local clips and verify 1080x1350 H264/AAC export
         shell: bash
         working-directory: src
         env:
@@ -135,6 +257,190 @@ jobs:
           ffmpeg -version | head -n 1
           test -f "$CLIPCATCH_PREVIEW_FONT"
           go test -run '^TestSegmentFFmpegLocalCarouselEndToEnd$' -count=1 -v -timeout=3m .
+      - name: Chromium check: preview size, flat background, no number, API UI
+        shell: bash
+        run: |
+          python -m pip install -q playwright==1.56.0
+          python -m playwright install chromium
+          python tests/segment-preview-browser.py
+      - name: Save browser QA screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClipCatch-Preview-2.0.1-test.10-qa
+          path: qa-output/*.png
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Real public Assembly 8-second segment through ClipCatch job queue
+        continue-on-error: true
+        working-directory: src
+        shell: bash
+        env:
+          CLIPCATCH_SEGMENT_LIVE_TEST: '1'
+        run: |
+          python -m pip install --disable-pip-version-check -q yt-dlp==2026.11.23
+          go test -run '^TestPreviewAssemblyLiveTrim$' -count=1 -v -timeout=3m .
+ -count=1 -v -timeout=4m .
+      - name: Chromium check: preview size, flat background, no number, API UI
+        shell: bash
+        run: |
+          python -m pip install -q playwright==1.56.0
+          python -m playwright install chromium
+          python tests/segment-preview-browser.py
+      - name: Save browser QA screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClipCatch-Preview-2.0.1-test.10-qa
+          path: qa-output/*.png
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Real public Assembly 8-second segment through ClipCatch job queue
+        continue-on-error: true
+        working-directory: src
+        shell: bash
+        env:
+          CLIPCATCH_SEGMENT_LIVE_TEST: '1'
+        run: |
+          python -m pip install --disable-pip-version-check -q yt-dlp==2026.11.23
+          go test -run '^TestPreviewAssemblyLiveTrim$' -count=1 -v -timeout=3m .
+ .
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime or video resolver tests failed' }
+          go vet ./...
+          if ($LASTEXITCODE -ne 0) { throw 'Go static checks failed' }
+          Pop-Location
+          node --check src/web/inline-download-ui.js
+          node --check src/web/segment-enhancement.js
+          if ($LASTEXITCODE -ne 0) { throw 'Integrated editor syntax failed' }
+          node --test tests/inline-download-ui.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Integrated editor unit tests failed' }
+
+      - name: Build a distinct ClipCatch Preview executable with its own icon metadata
+        shell: pwsh
+        run: |
+          python -m pip install Pillow==11.3.0
+          if ($LASTEXITCODE -ne 0) { throw 'Pillow unavailable' }
+          python tools/windows_resources.py --version 2.0.1-test.10 --preview
+          if ($LASTEXITCODE -ne 0) { throw 'Preview Windows resource generation failed' }
+          New-Item -ItemType Directory -Force dist-preview | Out-Null
+          $env:CGO_ENABLED = '0'
+          Push-Location src
+          try {
+            go build -trimpath '-ldflags=-s -w -H windowsgui -X main.appVersion=2.0.1-test.10 -X main.appChannel=preview' -o ../dist-preview/ClipCatch-Preview-V2.exe .
+            if ($LASTEXITCODE -ne 0) { throw 'Portable Preview EXE build failed' }
+          } finally { Pop-Location }
+
+      - name: Verify EXE identity and run on separate local port without a launcher
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path dist-preview/ClipCatch-Preview-V2.exe).Path
+          $p = Start-Process -FilePath $exe -ArgumentList @('--build-info', (Join-Path (Get-Location) 'dist-preview\identity.json')) -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw 'EXE identity probe failed' }
+          $id = Get-Content dist-preview/identity.json -Raw | ConvertFrom-Json
+          if ($id.app -ne 'clipcatch-preview-v2' -or $id.channel -ne 'preview' -or $id.version -ne '2.0.1-test.10') {
+            throw 'Wrong portable identity; refuse delivery'
+          }
+          $meta = (Get-Item $exe).VersionInfo
+          if ($meta.FileDescription -ne 'ClipCatch Preview V2' -or $meta.OriginalFilename -ne 'ClipCatch-Preview-V2.exe') {
+            throw 'Windows metadata collision with existing ClipCatch'
+          }
+          Remove-Item dist-preview/identity.json
+          # Launch directly, no start-new wrapper, no old process status checks.
+          $proc = Start-Process -FilePath $exe -PassThru
+          try {
+            $found = $false
+            for ($i = 0; $i -lt 48; $i++) {
+              Start-Sleep -Milliseconds 400
+              if ($proc.HasExited) { throw 'Preview closed before serving health endpoint' }
+              try {
+                $health = Invoke-RestMethod -Uri 'http://127.0.0.1:18768/api/health' -TimeoutSec 2
+                if ($health.app -eq 'clipcatch-preview-v2' -and $health.channel -eq 'preview' -and $health.version -eq '2.0.1-test.10') {
+                  $found = $true
+                  break
+                }
+              } catch {}
+            }
+            if (-not $found) { throw 'Preview did not open isolated port 18768' }
+            Write-Host 'PASS: direct launch on 127.0.0.1:18768 without TEST2 process and without launcher'
+          } finally {
+            if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+            $proc.Dispose()
+          }
+          (Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant() + '  ClipCatch-Preview-V2.exe' | Set-Content dist-preview/SHA256SUMS -Encoding ascii
+
+      - name: Upload only standalone Preview EXE and checksum
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClipCatch-Preview-2.0.1-test.10
+          path: dist-preview/
+          if-no-files-found: error
+          retention-days: 30
+
+  render-e2e-ubuntu:
+    if: github.head_ref == 'test/clipcatch-preview-2.0.1-test.10'
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: src/go.mod
+      - name: Install FFmpeg for standalone media integration test
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+      - name: Generate synthetic local clips and verify 1080x1350 H264/AAC export
+        shell: bash
+        working-directory: src
+        env:
+          CLIPCATCH_SEGMENT_MEDIA_TEST: '1'
+          CLIPCATCH_PREVIEW_FONT: /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+        run: |
+          ffmpeg -version | head -n 1
+          test -f "$CLIPCATCH_PREVIEW_FONT"
+          go test -run '^Test(SegmentFFmpegLocalCarouselEndToEnd|SegmentFFmpegLocalClipHasPlayableSound)
+      - name: Chromium check: preview size, flat background, no number, API UI
+        shell: bash
+        run: |
+          python -m pip install -q playwright==1.56.0
+          python -m playwright install chromium
+          python tests/segment-preview-browser.py
+      - name: Save browser QA screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClipCatch-Preview-2.0.1-test.10-qa
+          path: qa-output/*.png
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Real public Assembly 8-second segment through ClipCatch job queue
+        continue-on-error: true
+        working-directory: src
+        shell: bash
+        env:
+          CLIPCATCH_SEGMENT_LIVE_TEST: '1'
+        run: |
+          python -m pip install --disable-pip-version-check -q yt-dlp==2026.11.23
+          go test -run '^TestPreviewAssemblyLiveTrim$' -count=1 -v -timeout=3m .
+ -count=1 -v -timeout=4m .
+      - name: Chromium check: preview size, flat background, no number, API UI
+        shell: bash
+        run: |
+          python -m pip install -q playwright==1.56.0
+          python -m playwright install chromium
+          python tests/segment-preview-browser.py
+      - name: Save browser QA screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClipCatch-Preview-2.0.1-test.10-qa
+          path: qa-output/*.png
+          if-no-files-found: ignore
+          retention-days: 30
       - name: Real public Assembly 8-second segment through ClipCatch job queue
         continue-on-error: true
         working-directory: src
