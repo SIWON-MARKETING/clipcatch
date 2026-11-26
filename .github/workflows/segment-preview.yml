@@ -135,7 +135,7 @@ jobs:
           ffmpeg -version | head -n 1
           test -f "$CLIPCATCH_PREVIEW_FONT"
           go test -run '^Test(SegmentFFmpegLocalCarouselEndToEnd|SegmentFFmpegLocalClipHasPlayableSound)$' -count=1 -v -timeout=4m .
-      - name: Chromium check: preview size, flat background, no number, API UI
+      - name: Verify Chromium layout, flat background, hidden local button and API
         shell: bash
         run: |
           python -m pip install -q playwright==1.56.0
