@@ -50,14 +50,14 @@ function updatePreview(){
   detail.style.left=draft.x+'%';
   detail.style.top=draft.y+'%';
   inline.style.color=style.color;
-  inline.style.fontSize=(style.size*178/1080).toFixed(2)+'px';
+  inline.style.fontSize=(style.size*250/1080).toFixed(2)+'px';
   inline.style.left=(style.x-45)+'%';
   inline.style.right=(100-style.x-45)+'%';
   inline.style.bottom=state.advanced?(100-style.y-8)+'%':'7%';
   inline.style.textAlign='center';
   $('ccwCopyStyle').textContent=state.advanced?'세부 편집 스타일 적용':'기본 크기·위치 자동 적용';
-  $('ccwVideo').style.objectFit=style.fit;
-  $('ccwDetailVideo').style.objectFit=style.fit;
+  $('ccwVideo').style.objectFit='contain';
+  $('ccwDetailVideo').style.objectFit='contain';
 }
 function modeChange(next){
   state.mode=next;
@@ -111,7 +111,7 @@ function syncControls(){
  draft.size=Number($('ccwFontSize').value);
  draft.color=$('ccwColor').value;
  draft.y=Number($('ccwY').value);
- draft.fit=$('ccwFit').value;
+ draft.fit='contain';
  $('ccwSizeLabel').textContent=draft.size+'px';
  updatePreview();
 }
