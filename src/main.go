@@ -55,6 +55,7 @@ type Job struct {
 	Media              []savedPostMedia `json:"media,omitempty"`
 	OutputMode         string           `json:"output_mode,omitempty"`
 	Task               string           `json:"task,omitempty"`
+	Segment            *segmentSpec     `json:"segment,omitempty"`
 	OriginalFile       string           `json:"original_file,omitempty"`
 	EditReady          bool             `json:"edit_ready,omitempty"`
 	Stage              string           `json:"stage,omitempty"`
@@ -253,6 +254,7 @@ func (a *App) routes() {
 		writeJSON(w, 200, state)
 	})
 	mux.HandleFunc("POST /api/download", a.downloadHandler)
+	a.segmentRoutes(mux)
 	mux.HandleFunc("POST /api/cancel-download", a.cancelDownloadHandler)
 	mux.HandleFunc("POST /api/retry-failed", a.retryFailedHandler)
 	mux.HandleFunc("POST /api/update-tool", a.updateToolHandler)
@@ -704,7 +706,7 @@ func (a *App) downloadArgsForAttempt(j *Job, impersonate bool, forceIPv4 ...bool
 		// Resolution and frame rate outrank codec preference: never silently take a smaller AVC stream.
 		args = append(args, "--format-sort-force", "-S", "hasvid,res,fps,hdr:12,lang,+vcodec:avc,+acodec:m4a")
 	}
-	return append(postDownloadArgs(j, args), j.URL)
+	return segmentArgs(j,append(postDownloadArgs(j, args), j.URL))
 }
 
 func isRedditHost(host string) bool {
@@ -944,6 +946,10 @@ func (a *App) runDownload(id string) {
 		return
 	}
 	a.mutateJob(id, func(item *Job) { item.DownloadIncomplete = false })
+	if j.Segment != nil {
+		a.finishSegment(id,ctx)
+		return
+	}
 	got := a.getJob(id)
 	if got != nil && (got.WholePost || len(got.Media) > 1) {
 		a.finishPostMedia(id, ctx, j.OutputMode == premiereMode)
