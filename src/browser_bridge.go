@@ -232,6 +232,20 @@ func (a *App) installBrowserExtension() (string, error) {
 		if e != nil {
 			return "", e
 		}
+		if isTrialBuild() {
+			// Only the isolated TEST2 installation changes its copy. Keep the
+			// embedded stable extension unchanged for stable regression tests.
+			switch ent.Name() {
+			case "background.js":
+				b = []byte(strings.ReplaceAll(strings.ReplaceAll(string(b),
+					"'clipcatch'", "'clipcatch-test2'"), "'stable'", "'test'"))
+			case "popup.js":
+				b = []byte(strings.ReplaceAll(string(b),
+					"hello?.channel!=='stable'", "hello?.channel!=='test'"))
+			case "manifest.json":
+				b = []byte(strings.ReplaceAll(string(b), "ClipCatch Browser", "ClipCatch Browser TEST2"))
+			}
+		}
 		if e = os.WriteFile(filepath.Join(dir, ent.Name()), b, 0600); e != nil {
 			return "", e
 		}
