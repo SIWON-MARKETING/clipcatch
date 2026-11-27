@@ -1,0 +1,54 @@
+name: Preview test.10 clean Windows rendering
+
+on:
+  push:
+    branches: [qa/preview-test10-cross-pc-20261127]
+    paths:
+      - '.github/workflows/preview-test10-cross-pc.yml'
+      - 'tools/qa/preview_test10_windows.py'
+      - 'tools/qa/preview_native_windows_test.go'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  clean-windows-media:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: qa
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 57fd6ae2030c522e625ddee93e5f8605584ab492
+          path: preview-source
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: preview-source/src/go.mod
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: ClipCatch-Preview-2.0.1-test.10
+          path: preview-exe
+          run-id: 45774881313
+          github-token: ${{ github.token }}
+      - name: Exact existing EXE cold start and native Windows media export
+        shell: pwsh
+        run: |
+          python qa/tools/qa/preview_test10_windows.py preview-exe/ClipCatch-Preview-V2.exe preview-source evidence
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Preview-test10-clean-Windows-evidence
+          path: evidence/
+          retention-days: 30
