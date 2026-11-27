@@ -1,6 +1,8 @@
 name: ClipCatch Preview V2 segment and carousel integration
 
 on:
+  push:
+    branches: [test/clipcatch-preview-2.0.1-test.11]
   pull_request:
     branches: [main]
     paths:
@@ -15,14 +17,14 @@ permissions:
 
 jobs:
   preview-windows:
-    if: github.head_ref == 'test/clipcatch-preview-2.0.1-test.10'
+    if: github.head_ref == 'test/clipcatch-preview-2.0.1-test.11' || github.ref_name == 'test/clipcatch-preview-2.0.1-test.11'
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-go@v5
         with:
           go-version-file: src/go.mod
@@ -37,7 +39,7 @@ jobs:
         shell: pwsh
         run: |
           Push-Location src
-          go test -count=1 -timeout=5m -run '^Test(PortablePreviewHasOwnAddressAndFiles|TrialIsolatedPathsAndUpdaterBlocked|TrialPairRequiresTestExtension|AssemblyOfficialMetadataResolution|NaverOfficialPlaybackMetadataAndSeparateAudio|HLSUsesFFmpegWhileDirectMP4AndDASHKeepExistingDownloader|PreviewSegmentValidationAndArgs|BridgeBodyDynamicPosition|PreviewSegmentAPIIsIsolatedAndRedditUsesExtensionOnly|SegmentWorkspaceStoresOnlyTemporarySources)$' .
+          go test -count=1 -timeout=5m -run '^Test(PortablePreviewHasOwnAddressAndFiles|TrialIsolatedPathsAndUpdaterBlocked|TrialPairRequiresTestExtension|AssemblyOfficialMetadataResolution|NaverOfficialPlaybackMetadataAndSeparateAudio|HLSUsesFFmpegWhileDirectMP4AndDASHKeepExistingDownloader|PreviewSegmentValidationAndArgs|BridgeBodyDynamicPosition|PreviewSegmentAPIIsIsolatedAndRedditUsesExtensionOnly|SegmentWorkspaceStoresOnlyTemporarySources|EditPublishNeverOverwritesAndCancels)$' .
           if ($LASTEXITCODE -ne 0) { throw 'Runtime or video resolver tests failed' }
           go vet ./...
           if ($LASTEXITCODE -ne 0) { throw 'Go static checks failed' }
@@ -53,13 +55,13 @@ jobs:
         run: |
           python -m pip install Pillow==11.3.0
           if ($LASTEXITCODE -ne 0) { throw 'Pillow unavailable' }
-          python tools/windows_resources.py --version 2.0.1-test.10 --preview
+          python tools/windows_resources.py --version 2.0.1-test.11 --preview
           if ($LASTEXITCODE -ne 0) { throw 'Preview Windows resource generation failed' }
           New-Item -ItemType Directory -Force dist-preview | Out-Null
           $env:CGO_ENABLED = '0'
           Push-Location src
           try {
-            go build -trimpath '-ldflags=-s -w -H windowsgui -X main.appVersion=2.0.1-test.10 -X main.appChannel=preview' -o ../dist-preview/ClipCatch-Preview-V2.exe .
+            go build -trimpath '-ldflags=-s -w -H windowsgui -X main.appVersion=2.0.1-test.11 -X main.appChannel=preview' -o ../dist-preview/ClipCatch-Preview-V2.exe .
             if ($LASTEXITCODE -ne 0) { throw 'Portable Preview EXE build failed' }
           } finally { Pop-Location }
 
@@ -70,7 +72,7 @@ jobs:
           $p = Start-Process -FilePath $exe -ArgumentList @('--build-info', (Join-Path (Get-Location) 'dist-preview\identity.json')) -PassThru -Wait
           if ($p.ExitCode -ne 0) { throw 'EXE identity probe failed' }
           $id = Get-Content dist-preview/identity.json -Raw | ConvertFrom-Json
-          if ($id.app -ne 'clipcatch-preview-v2' -or $id.channel -ne 'preview' -or $id.version -ne '2.0.1-test.10') {
+          if ($id.app -ne 'clipcatch-preview-v2' -or $id.channel -ne 'preview' -or $id.version -ne '2.0.1-test.11') {
             throw 'Wrong portable identity; refuse delivery'
           }
           $meta = (Get-Item $exe).VersionInfo
@@ -87,7 +89,7 @@ jobs:
               if ($proc.HasExited) { throw 'Preview closed before serving health endpoint' }
               try {
                 $health = Invoke-RestMethod -Uri 'http://127.0.0.1:18768/api/health' -TimeoutSec 2
-                if ($health.app -eq 'clipcatch-preview-v2' -and $health.channel -eq 'preview' -and $health.version -eq '2.0.1-test.10') {
+                if ($health.app -eq 'clipcatch-preview-v2' -and $health.channel -eq 'preview' -and $health.version -eq '2.0.1-test.11') {
                   $found = $true
                   break
                 }
@@ -100,7 +102,7 @@ jobs:
             $proc.Dispose()
           }
           # Match this tester-only binary to the exact branch source commit.
-          $expected = '${{ github.event.pull_request.head.sha }}'
+          $expected = '${{ github.event.pull_request.head.sha || github.sha }}'
           $buildMeta = (& go version -m $exe | Out-String)
           if ($buildMeta -notmatch [regex]::Escape($expected)) {
             throw 'Built EXE source commit does not match the test branch'
@@ -108,24 +110,39 @@ jobs:
           $expected | Set-Content dist-preview/SOURCE-COMMIT.txt -Encoding ascii
           (Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant() + '  ClipCatch-Preview-V2.exe' | Set-Content dist-preview/SHA256SUMS -Encoding ascii
 
+      - name: Clean Windows launch, installed font and cross-drive native rendering
+        shell: pwsh
+        run: |
+          python tools/qa/preview_windows.py dist-preview/ClipCatch-Preview-V2.exe . qa-output/native-windows 2.0.1-test.11 '${{ github.event.pull_request.head.sha || github.sha }}'
+          if ($LASTEXITCODE -ne 0) { throw 'Clean Windows rendering failed' }
+
+      - name: Save native Windows rendering evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClipCatch-Preview-2.0.1-test.11-native-qa
+          path: qa-output/native-windows/
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Upload only standalone Preview EXE and checksum
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ClipCatch-Preview-2.0.1-test.10
+          name: ClipCatch-Preview-2.0.1-test.11
           path: dist-preview/
           if-no-files-found: error
           retention-days: 30
 
   render-e2e-ubuntu:
-    if: github.head_ref == 'test/clipcatch-preview-2.0.1-test.10'
+    if: github.head_ref == 'test/clipcatch-preview-2.0.1-test.11' || github.ref_name == 'test/clipcatch-preview-2.0.1-test.11'
     runs-on: ubuntu-24.04
     timeout-minutes: 16
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-go@v5
         with:
           go-version-file: src/go.mod
@@ -154,7 +171,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ClipCatch-Preview-2.0.1-test.10-qa
+          name: ClipCatch-Preview-2.0.1-test.11-qa
           path: qa-output/*.png
           if-no-files-found: ignore
           retention-days: 30

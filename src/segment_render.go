@@ -346,10 +346,10 @@ func (a *App) renderSegmentClip(parent context.Context,id,ff,source string,s *se
     a.clearJobProcess(id,cmd)
     if err!=nil{return "",fmt.Errorf("MP4 audio/video conversion failed (%d diagnostic bytes): %w",len(output),err)}
     if err=verifySegmentMP4(parent,ff,temp,duration,hasAudio);err!=nil{return "",err}
-    if err=os.MkdirAll(a.saveDir,0755);err!=nil{return "",err}
-    target:=filepath.Join(a.saveDir,"ClipCatch_"+segmentStamp(s.Start)+"_"+segmentStamp(s.End)+"_"+id+"_section.mp4")
-    if err=os.Rename(temp,target);err!=nil{return "",err}
-    return target,nil
+    // The user's Downloads folder may be on another Windows volume. Reuse
+    // the cancellable, no-overwrite publisher instead of a cross-drive rename.
+    stem:="ClipCatch_"+segmentStamp(s.Start)+"_"+segmentStamp(s.End)+"_"+id+"_section"
+    return publishQuality(parent,temp,a.saveDir,stem,".mp4")
 }
 
 func (a *App) renderSegmentCarousel(parent context.Context,id,ff,source string,s *segmentSpec,duration float64,hasAudio bool)(string,error){
@@ -398,8 +398,6 @@ func (a *App) renderSegmentCarousel(parent context.Context,id,ff,source string,s
     a.clearJobProcess(id,cmd)
     if err!=nil{return "",fmt.Errorf("render failed (%d diagnostic bytes): %w",len(output),err)}
     if err=verifySegmentMP4(parent,ff,temp,duration,true);err!=nil{return "",err}
-    target:=filepath.Join(a.saveDir,"ClipCatch_"+segmentStamp(s.Start)+"_"+segmentStamp(s.End)+"_"+id+"_1080x1350.mp4")
-    if err=os.MkdirAll(a.saveDir,0755);err!=nil{return "",err}
-    if err=os.Rename(temp,target);err!=nil{return "",err}
-    return target,nil
+    stem:="ClipCatch_"+segmentStamp(s.Start)+"_"+segmentStamp(s.End)+"_"+id+"_1080x1350"
+    return publishQuality(parent,temp,a.saveDir,stem,".mp4")
 }

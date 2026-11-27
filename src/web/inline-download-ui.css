@@ -90,7 +90,6 @@
 #downloadPanel:has(#ccwEdit:not([hidden])) .ccw-rowtitle{margin-bottom:6px}
 #downloadPanel:has(#ccwEdit:not([hidden])) .ccw-times input{min-height:35px;padding:7px 9px;font-size:16px}
 #downloadPanel:has(#ccwEdit:not([hidden])) .ccw-duration{margin:5px 0 7px}
-#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-preview-frame{width:130px;height:163px}
 #downloadPanel:has(#ccwEdit:not([hidden])) .ccw-preview-area{gap:5px}
 #downloadPanel:has(#ccwEdit:not([hidden])) .ccw-copy-section{margin-top:7px}
 #downloadPanel:has(#ccwEdit:not([hidden])) .ccw-copy-section textarea{min-height:54px;max-height:95px;padding:7px 9px}

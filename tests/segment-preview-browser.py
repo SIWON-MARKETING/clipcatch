@@ -13,9 +13,9 @@ html=(WEB/'index.html').read_text(encoding='utf-8')
 extra=['premiere.js','quality.js','workspace-tabs.js','startup-update.js','lifecycle.js',
        'inline-download-ui.js','segment-enhancement.js']
 html=html.replace('</body>', ''.join('<script src="/'+x+'"></script>' for x in extra)+'</body>',1)
-html=html.replace('__APP_VERSION__','2.0.1-test.10')
+html=html.replace('__APP_VERSION__','2.0.1-test.11')
 posted=[]
-state={'version':'2.0.1-test.10','channel':'preview','phase':'ready','jobs':[],
+state={'version':'2.0.1-test.11','channel':'preview','phase':'ready','jobs':[],
        'save_dir':'C:\\ClipCatch\\Downloads','output_mode':'original',
        'app_update':{'status':'current'},'update_required':False,
        'engine':{'channel':'stable','message':'ready'}}
@@ -68,8 +68,8 @@ with sync_playwright() as p:
     expect(page.locator('#ccwPreviewText')).to_contain_text('아래에서 나온')
     assert page.locator('#ccwInlineNumber').count()==0,'Yellow number must not be inserted'
     expect(page.locator('#ccwChooseLocal')).to_be_hidden()
-    # Stylesheets are injected by the app asynchronously; wait for the larger
-    # inline layout instead of sampling the original 178px canvas too early.
+    # Verify effective geometry, including the expanded editor selector.
+    # A compact override previously reduced the preview to 130px.
     page.wait_for_function("() => document.querySelector('#ccwFrame') && parseFloat(getComputedStyle(document.querySelector('#ccwFrame')).width)>=210",timeout=10000)
     dimensions=page.locator('#ccwFrame').evaluate('(el)=>({width:el.getBoundingClientRect().width,css:getComputedStyle(el).width,parent:el.parentElement.getBoundingClientRect().width})')
     print('In-page preview dimensions:',dimensions,flush=True)
