@@ -101,7 +101,7 @@ func TestPreviewNativeCrossPC(t *testing.T) {
 		if i > 0 && (!strings.Contains(string(probe), `"width": 1080`) || !strings.Contains(string(probe), `"height": 1350`)) {
 			t.Fatalf("Wrong carousel size: %s", probe)
 		}
-		pcm := run("-hide_banner", "-loglevel", "error", "-i", file, "-vn", "-t", ".2", "-ac", "1", "-ar", "8000", "-f", "s16le", "-")
+		pcm := run("-hide_banner", "-loglevel", "error", "-i", file, "-vn", "-t", "0.2", "-ac", "1", "-ar", "8000", "-f", "s16le", "-")
 		audible := false
 		for _, b := range pcm {
 			if b != 0 {
