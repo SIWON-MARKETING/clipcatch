@@ -1,7 +1,7 @@
 """QA of the exact shipped Preview test.10, without rebuilding the app.
 
 Runs only in disposable CI Windows profiles. Native renderer tests use the
-same pinned source, real bootstrapped FFmpeg, and an official unmodified font.
+same pinned source, real bootstrapped FFmpeg, and a hash-verified original font.
 This does not claim testing the user's PC or matching a Figma asset.
 """
 import hashlib
@@ -24,7 +24,10 @@ if os.name != 'nt':
 EXE_HASH = '7071d4f21ce52b36f2dc9c54cd8af280fa42c7934eb0c91c447c05ea10cce3ff'
 SOURCE = '57fd6ae2030c522e625ddee93e5f8605584ab492'
 FONT_HASH = '7e8c6c5d7bdf4b9e3f171b8e5577ab36cc780735d978db08006fae8306e6bae2'
-FONT_URL = 'https://www.onestorecorp.com/assets/fonts/ONE%20Mobile%20POP.zip'
+# The publisher's former ZIP URL returns 404. Use a public archive only for
+# disposable QA, requiring byte identity with the original OTF already pinned
+# by the Bridge source. Never commit the font or include it in evidence.
+FONT_URL = 'https://drive.google.com/uc?export=download&id=1oNn3HDirERzsyIj_vdIn1C8HPBL1Ry8N'
 BASE = 'http://127.0.0.1:18768'
 exe, source, out = [Path(x).resolve() for x in sys.argv[1:4]]
 out.mkdir(parents=True, exist_ok=True)
@@ -109,7 +112,7 @@ try:
     except urllib.error.HTTPError as error:
         assert error.code == 409
         assert 'POP' in error.read().decode('utf-8')
-    req = urllib.request.Request(FONT_URL, headers={'User-Agent': 'ClipCatch-QA'})
+    req = urllib.request.Request(FONT_URL, headers={'User-Agent': 'Mozilla/5.0 (compatible; ClipCatch-QA)'})
     with urllib.request.urlopen(req, timeout=60) as response:
         font_zip = response.read(12 * 1024 * 1024)
     with zipfile.ZipFile(io.BytesIO(font_zip)) as archive:
@@ -120,7 +123,8 @@ try:
     font.parent.mkdir(parents=True, exist_ok=True)
     font.write_bytes(font_bytes)
     assert get('/api/segment/preset')['installed_font'] is True
-    report.update(missing_font_explained=True, official_font_detected=True, font_sha256=FONT_HASH)
+    report.update(missing_font_explained=True, original_font_detected=True, font_sha256=FONT_HASH,
+                  font_download_source=FONT_URL, font_included_in_artifacts=False)
     post('/api/stop', {})
     assert process.wait(timeout=30) == 0
     process = None
