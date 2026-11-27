@@ -1,0 +1,83 @@
+name: ClipCatch site structure diagnostic (no media download)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/site-structure-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect-public-pages:
+    if: github.head_ref == 'test/multisite-2.0.1-test3'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    env:
+      PYTHONIOENCODING: utf-8
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read public Assembly and Naver HTML and public JS only; no media downloads or cookies
+        shell: pwsh
+        run: |
+          @'
+          from html.parser import HTMLParser
+          from urllib.parse import urlparse, urljoin
+          from urllib.request import Request, urlopen
+          from pathlib import Path
+          import os, re
+          root=Path('site-snapshots');root.mkdir(exist_ok=True)
+          PAGES=[
+             ('assembly', 'https://w3.assembly.go.kr/main/player.do?menu=10&mc=10&ct1=22&ct2=439&ct3=11&wv=1'),
+             ('naver-clip', 'https://clip.naver.com/contents'),
+             ('naver-shorts', 'https://m.naver.com/shorts/'),
+          ]
+          def get(url, limit=1200000):
+             request=Request(url,headers={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/129.0 Safari/537.36','Accept-Language':'ko-KR,ko;q=0.9','Accept':'text/html,application/xhtml+xml,*/*'})
+             with urlopen(request,timeout=12) as response:
+                 return response.status,response.url,response.read(limit+1)[:limit]
+          class Parser(HTMLParser):
+             def __init__(self):super().__init__();self.scripts=[]
+             def handle_starttag(self,tag,attrs):
+                 if tag=='script':
+                     src=dict(attrs).get('src')
+                     if src:self.scripts.append(src)
+          for name,url in PAGES:
+             try:
+                 code,final,body=get(url)
+                 (root/(name+'.html')).write_bytes(body)
+                 parser=Parser();parser.feed(body.decode('utf-8','replace'))
+                 print('PAGE',name,'HTTP',code,'bytes',len(body),'scripts',len(parser.scripts))
+                 for j,src in enumerate(parser.scripts):
+                     full=urljoin(final,src)
+                     host=urlparse(full).hostname
+                     if host not in ('w3.assembly.go.kr','static-clipcreators.pstatic.net'):continue
+                     if name=='naver-clip':
+                         # Clip home uses Next.js chunks; load the page-specific
+                         # chunks and a few core bundles with a strict 8 MB cap.
+                         if not any(x in full for x in ('/app/','main-app','webpack','_next/static/chunks/')):continue
+                         if j>39:continue
+                     if name=='assembly' and not any(x in full for x in ('openos','common.js','ready.js','sub.js')):continue
+                     try:
+                         status,target,js=get(full,limit=650000)
+                         if status==200:
+                             (root/(name+'-script-'+str(j)+'.js')).write_bytes(js)
+                             print('JS',name,j,len(js),urlparse(full).path[-130:])
+                     except Exception as exc:
+                         print('JS ERROR',name,j,type(exc).__name__)
+             except Exception as exc:
+                 print('PAGE ERROR',name,type(exc).__name__,str(exc)[:160])
+          '@ | python -
+      - name: Upload read-only page snapshots for internal inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClipCatch-site-snapshots
+          path: site-snapshots/
+          retention-days: 1
+          if-no-files-found: warn

@@ -1,0 +1,101 @@
+/* TEST2 video-download inline trim UI. No download API behavior is changed. */
+.ccw-workflow{margin:15px 0 0;border:1px solid #374454;border-radius:14px;background:#151d26;color:#e6edf3;overflow:hidden}
+.ccw-workflow *,#ccwDetailDialog *{box-sizing:border-box}
+.ccw-mode{display:flex;align-items:center;gap:13px;flex-wrap:wrap;padding:12px 14px}
+.ccw-mode-label{font-size:12px;font-weight:800;color:#cad5df;white-space:nowrap}
+.ccw-segment{display:inline-flex;gap:3px;padding:3px;border:1px solid #3b4854;background:#0e151f;border-radius:10px}
+.ccw-segment button{font:inherit;font-size:12px;font-weight:800;cursor:pointer;padding:8px 14px;border-radius:8px;color:#afbac7;border:0;background:transparent}
+.ccw-segment button[aria-pressed=true]{color:#13200a;background:#d9ff57}
+.ccw-summary{margin-left:auto;color:#91a2b3;font-size:11px;line-height:1.5}
+.ccw-edit{border-top:1px solid #344150;padding:14px 15px 12px}
+.ccw-quickgrid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(210px,.7fr);gap:15px;align-items:start}
+.ccw-controls{min-width:0}
+.ccw-rowtitle{font-weight:850;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.ccw-rowtitle small{font-size:10px;color:#98aaba;font-weight:550}
+.ccw-times{display:grid;grid-template-columns:minmax(0,1fr) 19px minmax(0,1fr);gap:9px;align-items:end}
+.ccw-times label{display:block;font-size:11px;font-weight:750;color:#b3c3d2}
+.ccw-times label span{display:block;margin-bottom:5px}
+.ccw-times input{display:block;width:100%;background:#0d141d;border:1px solid #435260;border-radius:9px;color:#f5f8fa;font-size:18px;font-weight:850;letter-spacing:.7px;padding:10px 11px;font-family:Consolas,monospace;min-height:44px}
+.ccw-times input:focus{outline:2px solid #badb6c;outline-offset:1px}
+.ccw-times input[aria-invalid=true]{border-color:#d97c82}
+.ccw-times .ccw-tilde{align-self:center;margin-top:15px;color:#8fa1b2;text-align:center}
+.ccw-duration{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#9bafbd;margin:9px 0 10px;min-height:18px}
+.ccw-duration strong{font-variant-numeric:tabular-nums;color:#d5f0b6;font-size:12px}
+.ccw-duration[data-error=true] strong{color:#ffb9bf}
+.ccw-config-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ccw-subbtn{border:1px solid #485767;background:#253341;color:#e4eaf0;border-radius:9px;padding:9px 12px;font-weight:800;font-size:12px;cursor:pointer}
+.ccw-subbtn:hover{border-color:#90aa72;background:#2d3e48}
+.ccw-subbtn.ccw-green{color:#dbfbb4;border-color:#5b703b}
+.ccw-small{font-size:10px;color:#95a9b5;line-height:1.5}
+.ccw-copy-section{margin-top:10px}
+.ccw-copy-section label{display:flex;justify-content:space-between;gap:10px;color:#e3eef2;font-size:12px;font-weight:770;margin-bottom:6px}
+.ccw-copy-section label span{font-size:10px;font-weight:500;color:#a2b6ad}
+.ccw-copy-section textarea{background:#0e1720;border:1px solid #435260;color:#fff;padding:10px 11px;line-height:1.45;border-radius:10px;width:100%;resize:vertical;min-height:68px;max-height:160px;font-size:14px}
+.ccw-copy-section textarea:focus{outline:2px solid #c4dc8e}
+.ccw-preview-area{display:grid;gap:9px;justify-items:center;min-width:0}
+.ccw-preview-header{display:flex;align-items:center;justify-content:space-between;gap:9px;width:100%;font-size:11px;color:#aab9c7;font-weight:750}
+.ccw-preview-frame{height:222px;width:178px;position:relative;overflow:hidden;background:linear-gradient(160deg,#26343b,#0e171c 72%);border-radius:7px;border:1px solid #51606c;box-shadow:0 8px 25px #05090dc9}
+.ccw-preview-frame video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#0b1013}
+.ccw-preview-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;font-size:11px;color:#7f939d;line-height:1.6}
+.ccw-preview-gradient{position:absolute;left:0;right:0;bottom:0;height:42%;background:linear-gradient(transparent,rgba(0,0,0,.9))}
+.ccw-preview-text{position:absolute;left:4%;right:4%;bottom:7%;white-space:pre-wrap;overflow-wrap:anywhere;color:#fff;text-align:center;font-family:"ONE Mobile POP","ONE Mobile POP OTF","Malgun Gothic",sans-serif;font-size:13px;line-height:1.2;font-weight:400;text-shadow:0 1px 2px #000a;pointer-events:none}
+.ccw-preview-note{font-size:10px;line-height:1.35;color:#93a8b6;text-align:center}
+.ccw-edit-notice{margin:11px 0 0;color:#e7c88a;font-size:11px;line-height:1.6}
+.ccw-trim-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:22px}
+.ccw-trim-actions button{padding:15px 19px;border-radius:11px;font-weight:850;font-size:13px;cursor:pointer}
+.ccw-trim-actions .ccw-download{background:#d9ff57;border:0;color:#17220c}
+.ccw-trim-actions .ccw-carousel{background:#293745;color:#eef8e7;border:1px solid #719052}
+.ccw-trim-actions small{color:#acbbca;font-size:11px;line-height:1.6}
+.ccw-status{font-size:11px;color:#c4e2a2;line-height:1.6;margin:6px 0 0}
+.ccw-status[data-error=true]{color:#ffbdb9}
+#ccwDetailDialog{border:1px solid #415365;border-radius:17px;background:#151d26;color:#f3f7f9;width:min(790px,calc(100vw - 30px));max-height:min(720px,calc(100dvh - 35px));padding:0;box-shadow:0 25px 100px #000d;overflow:auto}
+#ccwDetailDialog::backdrop{background:#000b}
+.ccw-detail-head{display:flex;justify-content:space-between;align-items:center;padding:17px 19px;border-bottom:1px solid #344352}
+.ccw-detail-head h2{font-size:17px;letter-spacing:-.4px;margin:0}
+.ccw-detail-head button{color:#d8e5eb;border:0;background:transparent;font-size:23px;cursor:pointer}
+.ccw-detail-grid{display:grid;grid-template-columns:minmax(190px,.85fr) minmax(290px,1.15fr);gap:14px;padding:16px}
+.ccw-detail-stage{background:#101720;border:1px solid #334454;border-radius:12px;padding:15px;display:flex;justify-content:center;align-items:center;min-height:342px}
+.ccw-detail-preview{position:relative;width:239px;height:299px;overflow:hidden;border-radius:5px;background:linear-gradient(160deg,#32404c,#0a1016);cursor:default}
+.ccw-detail-preview video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.ccw-detail-preview .ccw-preview-gradient{z-index:1}
+.ccw-detail-preview .ccw-preview-placeholder{z-index:0}
+.ccw-detail-overlay{position:absolute;left:50%;top:72%;width:90%;transform:translate(-50%,-50%);color:white;font-family:"ONE Mobile POP","ONE Mobile POP OTF","Malgun Gothic",sans-serif;font-size:17px;text-align:center;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.2;cursor:grab;touch-action:none;z-index:2;text-shadow:0 2px 6px #000b}
+.ccw-detail-overlay:active{cursor:grabbing}
+.ccw-detail-controls{display:flex;flex-direction:column;gap:14px;min-width:0}
+.ccw-detail-controls label{font-size:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;color:#dbe7ed;font-weight:750}
+.ccw-detail-controls textarea{width:100%;min-height:88px;background:#0f1922;border:1px solid #455362;border-radius:9px;color:#fff;padding:10px;font-size:14px;resize:vertical}
+.ccw-detail-controls input[type=range]{width:100%;accent-color:#d9ff57}
+.ccw-detail-controls input[type=color]{min-width:44px;height:36px;border:1px solid #52626e;padding:2px;background:#18232e;border-radius:8px}
+.ccw-detail-controls .ccw-half{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.ccw-detail-footer{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:13px 19px;border-top:1px solid #344352}
+.ccw-detail-footer .ccw-small{flex:1}
+.ccw-detail-footer button{background:#d9ff57;border:0;color:#15200c;border-radius:9px;padding:11px 17px;font-size:12px;font-weight:850;cursor:pointer}
+.ccw-detail-footer button.ccw-secondary{border:1px solid #4b5a67;background:#243241;color:#e3edf3}
+@media(max-width:850px){.ccw-quickgrid{grid-template-columns:minmax(0,1fr) 205px}.ccw-preview-frame{height:192px;width:154px}}
+@media(max-width:690px){.ccw-mode{align-items:flex-start}.ccw-summary{margin-left:0;width:100%}.ccw-quickgrid{grid-template-columns:1fr}.ccw-preview-area{display:none}.ccw-detail-grid{grid-template-columns:1fr}.ccw-detail-stage{min-height:250px}.ccw-detail-preview{width:180px;height:225px}.ccw-detail-controls .ccw-half{grid-template-columns:1fr 1fr}}
+@media(max-width:410px){.ccw-times input{font-size:15px;padding:10px 6px}.ccw-trim-actions button{width:100%}.ccw-mode .ccw-segment{width:100%}.ccw-segment button{flex:1}}
+
+/* Compact the existing download screen ONLY when optional trim is expanded.
+   Keep original mode and all other tabs unchanged. */
+#downloadPanel:has(#ccwEdit:not([hidden])) .entry{padding:15px 22px 13px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .entry-head{margin-bottom:7px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .urlbox{min-height:64px;max-height:88px;padding:10px 13px;border-radius:11px;line-height:1.45}
+#downloadPanel:has(#ccwEdit:not([hidden])) .paste{top:7px;right:7px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .info-line{margin-top:6px;gap:5px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-workflow{margin-top:9px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-mode{padding:7px 11px;gap:9px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-mode .ccw-segment button{padding:7px 11px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-edit{padding:9px 13px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-quickgrid{gap:10px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-rowtitle{margin-bottom:6px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-times input{min-height:35px;padding:7px 9px;font-size:16px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-duration{margin:5px 0 7px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-preview-frame{width:130px;height:163px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-preview-area{gap:5px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-copy-section{margin-top:7px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-copy-section textarea{min-height:54px;max-height:95px;padding:7px 9px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-edit-notice{margin:5px 0 0;line-height:1.35}
+#downloadPanel:has(#ccwEdit:not([hidden])) #premierePanel{display:none}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-trim-actions{margin-top:11px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .ccw-trim-actions button{padding:11px 16px}
+#downloadPanel:has(#ccwEdit:not([hidden])) .bottom-strip{padding:10px 22px}

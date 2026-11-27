@@ -38,7 +38,7 @@
 
  // Only a TEST2 build needs a channel label; stable already has one version in the header.
  const identity=el('span');identity.id='buildIdentity';identity.className='build-channel';identity.hidden=true;document.querySelector('.brand')?.append(identity);
- const oldRender=render;render=function(st){oldRender(st);if(st){const trial=st.channel==='test';identity.hidden=!trial;identity.textContent=trial?'TEST2 테스트판':'';identity.title=trial?'팀 공유는 설정의 최신 다운로드 링크를 이용해 주세요.':'';}};
+ const oldRender=render;render=function(st){oldRender(st);if(st){const trial=st.channel==='test',preview=st.channel==='preview';identity.hidden=!(trial||preview);identity.textContent=preview?'PREVIEW 독립 실행판':trial?'TEST2 테스트판':'';identity.title=preview?'다른 클립캐치 설치본과 별도로 실행하는 화면이야.':trial?'팀 공유는 설정의 최신 다운로드 링크를 이용해 주세요.':'';}};
 
  const tabs=el('nav');tabs.className='workspace-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','작업 선택');download.before(tabs);
  const entries=[['navDownload','영상 다운로드',download],['navQuality','화질 개선',quality],['navExtension','확장프로그램',extension]];

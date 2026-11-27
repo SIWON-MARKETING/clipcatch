@@ -55,6 +55,7 @@ type Job struct {
 	Media              []savedPostMedia `json:"media,omitempty"`
 	OutputMode         string           `json:"output_mode,omitempty"`
 	Task               string           `json:"task,omitempty"`
+	Segment            *segmentSpec     `json:"segment,omitempty"`
 	OriginalFile       string           `json:"original_file,omitempty"`
 	EditReady          bool             `json:"edit_ready,omitempty"`
 	Stage              string           `json:"stage,omitempty"`
@@ -205,7 +206,14 @@ func (a *App) routes() {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "no-store")
-		_, _ = w.Write([]byte(strings.ReplaceAll(strings.Replace(string(b), "</body>", "<script src=\"/premiere.js\"></script><script src=\"/quality.js\"></script><script src=\"/workspace-tabs.js\"></script><script src=\"/startup-update.js\"></script><script src=\"/lifecycle.js\"></script></body>", 1), "__APP_VERSION__", appVersion)))
+		html := strings.ReplaceAll(strings.Replace(string(b), "</body>", "<script src=\"/premiere.js\"></script><script src=\"/quality.js\"></script><script src=\"/workspace-tabs.js\"></script><script src=\"/startup-update.js\"></script><script src=\"/lifecycle.js\"></script></body>", 1), "__APP_VERSION__", appVersion)
+		if isTrialBuild() {
+			html = strings.Replace(html, "</body>", "<script src=\"/inline-download-ui.js\"></script></body>", 1)
+			if isPreviewBuild() {
+				html = strings.Replace(html, "</body>", "<script src=\"/segment-enhancement.js\"></script></body>", 1)
+			}
+		}
+		_, _ = w.Write([]byte(html))
 	})
 	// Serve the app's distinctive tab icon from the executable (no extra files needed).
 	for _, asset := range []struct{ path, mediaType string }{
@@ -249,6 +257,7 @@ func (a *App) routes() {
 		writeJSON(w, 200, state)
 	})
 	mux.HandleFunc("POST /api/download", a.downloadHandler)
+	a.segmentRoutes(mux)
 	mux.HandleFunc("POST /api/cancel-download", a.cancelDownloadHandler)
 	mux.HandleFunc("POST /api/retry-failed", a.retryFailedHandler)
 	mux.HandleFunc("POST /api/update-tool", a.updateToolHandler)
@@ -299,6 +308,30 @@ func (a *App) routes() {
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		_, _ = w.Write(b)
 	})
+	// UI-only trim editor assets: enabled by the TEST2 page, not a new tab.
+	for _, asset := range []struct { file, contentType string }{
+		{"inline-download-ui.js", "text/javascript; charset=utf-8"},
+		{"inline-download-ui.css", "text/css; charset=utf-8"},
+		{"segment-enhancement.js", "text/javascript; charset=utf-8"},
+		{"segment-enhancement.css", "text/css; charset=utf-8"},
+	} {
+		asset := asset
+		mux.HandleFunc("GET /"+asset.file, func(w http.ResponseWriter, r *http.Request) {
+			if !isTrialBuild() {
+				http.NotFound(w, r)
+				return
+			}
+			b, err := pages.ReadFile("web/"+asset.file)
+			if err != nil {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", asset.contentType)
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("Cache-Control", "no-store")
+			_, _ = w.Write(b)
+		})
+	}
 	a.mux = mux
 }
 
@@ -382,7 +415,7 @@ func cleanURL(raw string) (string, string, error) {
 	if u.Port() != "" && u.Port() != "80" && u.Port() != "443" {
 		return "", "", errors.New("기본 웹 포트 이외의 링크는 지원하지 않습니다")
 	}
-	if !approvedVideoHost(host) {
+	if !approvedVideoHost(host) || !approvedVideoPath(u, host) {
 		return "", "", errors.New("회사 PC 안전판에서는 검증된 영상 사이트 링크만 지원해요")
 	}
 	if len(raw) > 4096 {
@@ -404,8 +437,47 @@ func cleanURL(raw string) (string, string, error) {
 	return u.String(), host, nil
 }
 
+// Expand only exact public video pages. Do not allow every page/subdomain
+// of Naver or the Assembly site to be fetched as an arbitrary video source.
+func approvedVideoPath(u *url.URL, host string) bool {
+    switch host {
+    case "m.naver.com":
+        if u.Scheme != "https" || u.Port() != "" ||
+            (u.EscapedPath() != "/shorts" && u.EscapedPath() != "/shorts/") {
+            return false
+        }
+        mediaID := u.Query().Get("mediaId")
+        if mediaID == "" {
+            mediaID = u.Query().Get("seedMediaId")
+        }
+        return regexp.MustCompile("^[0-9A-Fa-f]{16,64}$").MatchString(mediaID)
+    case "clip.naver.com":
+        return u.Scheme == "https" && u.Port() == "" &&
+            (u.EscapedPath() == "/contents" || u.EscapedPath() == "/contents/") &&
+            regexp.MustCompile("^[0-9A-Fa-f]{16,64}$").MatchString(u.Query().Get("seedMediaId"))
+    case "tv.naver.com":
+        return u.Scheme == "https" && u.Port() == "" &&
+            regexp.MustCompile("^/(?:v|embed)/[0-9]+/?$").MatchString(u.EscapedPath())
+    case "w3.assembly.go.kr":
+        q := u.Query()
+        digits := regexp.MustCompile("^[0-9]+$")
+        return u.Scheme == "https" && u.Port() == "" &&
+            u.EscapedPath() == "/main/player.do" &&
+            regexp.MustCompile("^[A-Za-z0-9]{1,12}$").MatchString(q.Get("mc")) && digits.MatchString(q.Get("ct1")) &&
+            digits.MatchString(q.Get("ct2")) &&
+            regexp.MustCompile("^[A-Za-z0-9]{1,12}$").MatchString(q.Get("ct3"))
+    default:
+        return true
+    }
+}
+
 // Allow listed public video platforms only. Domain boundaries are checked.
 func approvedVideoHost(host string) bool {
+    // Unlike the existing video-platform roots, these hosts are exact matches.
+    // approvedVideoPath additionally limits which pages can be queued.
+    if host == "m.naver.com" || host == "clip.naver.com" || host == "tv.naver.com" || host == "w3.assembly.go.kr" {
+        return true
+    }
 	allowed := []string{
 		"reddit.com", "redd.it", "v.redd.it", "youtube.com", "youtu.be",
 		"x.com", "twitter.com", "tiktok.com", "instagram.com",
@@ -639,7 +711,7 @@ func (a *App) downloadArgsForAttempt(j *Job, impersonate bool, forceIPv4 ...bool
 		// Resolution and frame rate outrank codec preference: never silently take a smaller AVC stream.
 		args = append(args, "--format-sort-force", "-S", "hasvid,res,fps,hdr:12,lang,+vcodec:avc,+acodec:m4a")
 	}
-	return append(postDownloadArgs(j, args), j.URL)
+	return segmentArgs(j,append(postDownloadArgs(j, args), j.URL))
 }
 
 func isRedditHost(host string) bool {
@@ -669,12 +741,20 @@ func isRedditConnectionDrop(msg string) bool {
 	return false
 }
 
+// Reddit can serve a public post while separately denying its JSON metadata API.
+// These are access restrictions, not proof that a Reddit account is required.
+func isRedditAPIRestricted(msg string) bool {
+	s := strings.ToLower(msg)
+	return strings.Contains(s, "unable to access the reddit api") ||
+		strings.Contains(s, "blocked by network security")
+}
+
 func isRedditAccessBlock(msg string) bool {
 	s := strings.ToLower(msg)
 	if strings.Contains(s, "429") || strings.Contains(s, "too many requests") {
 		return false
 	}
-	return needsAuth(msg) || strings.Contains(s, "http error 403") ||
+	return isRedditAPIRestricted(msg) || needsAuth(msg) || strings.Contains(s, "http error 403") ||
 		strings.Contains(s, "403 forbidden") || strings.Contains(s, "403: blocked") ||
 		strings.Contains(s, "failed to parse json")
 }
@@ -799,6 +879,40 @@ func (a *App) runDownload(id string) {
 	if ctx.Err() != nil || a.isJobCancelled(id) {
 		return
 	}
+	// If Reddit's JSON metadata is denied but the ordinary public post page
+	// exposes its own video ID, use the first-party CDN manifest instead.
+	// No new cookies, Chrome profile access, login bypass or cross-site fetches.
+	if err != nil && shouldAttemptRedditPageFallback(j.URL, j.Host, msg) && redditFallbackJobHasNoMedia(a.getJob(id)) {
+		a.mutateJob(id, func(item *Job) {
+			item.Detail = "레딧 공개 페이지에서 영상 정보를 다시 확인 중..."
+			item.Percent = 0
+		})
+		if mediaURL, resolveErr := resolveRedditPublicVideo(ctx, j.URL, nil); resolveErr == nil {
+			direct := cloneDownloadJob(j)
+			direct.URL = mediaURL
+			direct.Host = "v.redd.it"
+			err, msg = a.runDownloadAttempt(id, &direct, false)
+			if err == nil && ctx.Err() == nil && !a.isJobCancelled(id) {
+				downloaded := a.getJob(id)
+				if downloaded == nil || !nonempty(downloaded.File) {
+					err = errors.New("Reddit fallback output missing")
+					msg = "Reddit fallback output missing"
+				} else {
+					video, audio, checkErr := a.inspectBrowserOutput(ctx, downloaded.File)
+					if checkErr != nil || !video {
+						err = errors.New("Reddit fallback verification failed")
+						msg = "ffprobe: Reddit fallback video validation failed"
+					} else if !audio {
+						err = errors.New("Reddit fallback has no verified audio")
+						msg = "CC-313-REDDIT-FALLBACK-SILENT"
+					}
+				}
+			}
+		}
+	}
+	if ctx.Err() != nil || a.isJobCancelled(id) {
+		return
+	}
 	if err != nil {
 		if msg == "" {
 			msg = err.Error()
@@ -811,6 +925,18 @@ func (a *App) runDownload(id string) {
 			// Generic 403/JSON failures are not evidence that the user must log in.
 			j.AuthRequired = needsAuth(msg) || initialExplicitLogin
 			j.ErrorCode, j.ErrorTitle, j.ErrorAdvice = classifyDownloadError(msg, j.Host)
+			if strings.HasPrefix(msg, "CLIPCATCH-SITE-RESOLVE:") {
+				j.ErrorCode = "CC-316"
+				j.ErrorTitle = "사이트에서 영상 재생 주소를 가져오지 못했어"
+				j.ErrorAdvice = "공개 영상인지 확인해 줘. 영상 엔진 업데이트가 아니라 해당 사이트의 재생 정보 조회 오류야."
+				j.AuthRequired = false
+			}
+			if msg == "CC-313-REDDIT-FALLBACK-SILENT" {
+				j.ErrorCode = "CC-313"
+				j.ErrorTitle = "저장된 레딧 영상에 소리가 없어"
+				j.ErrorAdvice = "영상 원본이 무음인지 확인해 줘. 기존에 받은 파일은 보존했어. 무음이 맞으면 브라우저 확장에서 무음 저장을 허용할 수 있어."
+				j.AuthRequired = false
+			}
 			// Never persist raw stderr: sites may echo URLs or secret query tokens.
 			j.Detail = j.ErrorTitle
 			if j.ErrorCode == "CC-101" {
@@ -825,6 +951,10 @@ func (a *App) runDownload(id string) {
 		return
 	}
 	a.mutateJob(id, func(item *Job) { item.DownloadIncomplete = false })
+	if j.Segment != nil {
+		a.finishSegment(id,ctx)
+		return
+	}
 	got := a.getJob(id)
 	if got != nil && (got.WholePost || len(got.Media) > 1) {
 		a.finishPostMedia(id, ctx, j.OutputMode == premiereMode)
@@ -873,6 +1003,15 @@ func (a *App) runDownloadAttemptNetwork(id string, j *Job, impersonate, forceIPv
 	if err := ctx.Err(); err != nil {
 		return err, "다운로드가 취소되었어."
 	}
+	if isSpecialVideoPage(j.URL) {
+		var cleanup func()
+		var resolveErr error
+		args, cleanup, resolveErr = a.siteVideoDownloadArgs(ctx, j, args)
+		if resolveErr != nil {
+			return resolveErr, "CLIPCATCH-SITE-RESOLVE:" + resolveErr.Error()
+		}
+		defer cleanup()
+	}
 	cmd := hiddenCommandContext(ctx, a.ytDlp, args...)
 	cmd.Stdin = nil
 	stdout, err := cmd.StdoutPipe()
@@ -889,6 +1028,7 @@ func (a *App) runDownloadAttemptNetwork(id string, j *Job, impersonate, forceIPv
 	a.setJobProcess(id, cmd)
 	defer a.clearJobProcess(id, cmd)
 	var errLines []string
+	var firstErrorLine string
 	var linesMu sync.Mutex
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -910,6 +1050,9 @@ func (a *App) runDownloadAttemptNetwork(id string, j *Job, impersonate, forceIPv
 				continue
 			}
 			linesMu.Lock()
+			if firstErrorLine == "" && strings.HasPrefix(strings.ToLower(s), "error:") {
+				firstErrorLine = s
+			}
 			errLines = append(errLines, s)
 			if len(errLines) > 14 {
 				errLines = errLines[1:]
@@ -925,6 +1068,12 @@ func (a *App) runDownloadAttemptNetwork(id string, j *Job, impersonate, forceIPv
 	if err != nil {
 		linesMu.Lock()
 		msg := strings.Join(errLines, "\n")
+		// yt-dlp may emit more than 14 traceback/warning lines after the actual
+		// error. Keep that first error in memory for classification only; raw
+		// command output is never copied to history or diagnostic reports.
+		if firstErrorLine != "" && !strings.Contains(msg, firstErrorLine) {
+			msg = firstErrorLine + "\n" + msg
+		}
 		linesMu.Unlock()
 		return err, msg
 	}
@@ -1047,6 +1196,9 @@ func (a *App) bootstrap() {
 		a.setSetup("error", "설치 폴더 생성 실패", err.Error(), 0)
 		return
 	}
+	// Preview V2 can reuse the previous Preview engine without sharing writable
+	// files or re-downloading 100 MB tools. Production and TEST2 are untouched.
+	copyExistingPreviewTools(a.toolDir)
 	if err := os.MkdirAll(a.saveDir, 0755); err != nil {
 		a.setSetup("error", "저장 폴더 생성 실패", err.Error(), 0)
 		return
@@ -1356,10 +1508,10 @@ func main() {
 		applyClipCatchUpdate(os.Args[2:])
 		return
 	}
-	if runtime.GOOS == "windows" && updateLaunchGate() {
+	if runtime.GOOS == "windows" && !isPreviewBuild() && updateLaunchGate() {
 		return
 	}
-	if installAndRelaunch() {
+	if !isPreviewBuild() && installAndRelaunch() {
 		return
 	}
 	configBase, err := os.UserConfigDir()
@@ -1420,11 +1572,17 @@ func main() {
 		return
 	}
 	a := newApp(dataDir, savedir)
-	a.requireStartupCheck = a.state.AppUpdate.Status == "checking"
+	if isPreviewBuild() {
+		// Portable Preview never checks TEST2 releases or blocks downloads for updates.
+		a.state.AppUpdate = UpdateInfo{Status: "current", Latest: appVersion, Detail: "독립 실행형 Preview: 자동 업데이트 비활성"}
+	}
+	a.requireStartupCheck = !isPreviewBuild() && a.state.AppUpdate.Status == "checking"
 	defer a.stopWork()
 	a.server = &http.Server{Handler: http.HandlerFunc(a.serveHTTP), ReadHeaderTimeout: 10 * time.Second}
 	go a.bootstrap()
-	go a.watchAppUpdates()
+	if !isPreviewBuild() {
+		go a.watchAppUpdates()
+	}
 	go a.worker()
 	addr := "http://" + listener.Addr().String() + "/"
 	log.Println("Web UI running", addr)
